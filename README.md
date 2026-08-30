@@ -4,7 +4,7 @@ Will this FOMO trader’s **leaderboard total PnL** print over **$X** before thi
 
 Solana pots. One API: [FomoScan](https://api.fomoscan.sh/docs). PnL is `GET /v2/leaderboard/traders?window=all` field `pnl`. Create only if the trader is on the current top-25 `all` board and `T` is within three days. Default settle is first-print: the next board print over the mark resolves YES and closes betting. Close-at-T waits for the deadline print. Off-board at T cancels. No public resolve.
 
-MIT. Derived from an educational binary pot — see [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md). Audit handoff: [AUDIT.md](AUDIT.md). Reports: [SECURITY.md](SECURITY.md).
+MIT. Derived from an educational binary pot — see [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md). Program audit: [docs/audit/](docs/audit/). Engagement brief: [AUDIT.md](AUDIT.md). Reports: [SECURITY.md](SECURITY.md).
 
 ## Layout
 

@@ -6,7 +6,9 @@ Program id (localnet / devnet): `6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e`
 
 Source: [`programs/fomo-pnl/src/lib.rs`](programs/fomo-pnl/src/lib.rs)
 
-Parent template and the product delta: [`docs/UPSTREAM.md`](docs/UPSTREAM.md)
+Published scan: [`docs/audit/`](docs/audit/). Parent template delta: [`docs/UPSTREAM.md`](docs/UPSTREAM.md).
+
+**Scope:** `programs/fomo-pnl` only. Off-chain clients (tote UI, keeper, FomoScan HTTP) are out of scope and are not treated as open source for review.
 
 ## What it does
 
@@ -31,17 +33,9 @@ Resolver is a **trusted oracle**. A compromised resolver can post a false `end_p
 
 Settlement math: [`programs/fomo-pnl/src/settle.rs`](programs/fomo-pnl/src/settle.rs). Rake is snapshotted onto the market at create; later `set_rake` does not rewrite open pots.
 
-## Off-chain trust
-
-- Keeper (`services/keeper`) decides when a pot is due from one board print, then the server signs `resolve_market` with `FOMO_SERVER_KEYPAIR` (or `~/.config/solana/id.json` locally).
-- FomoScan API key lives on the server only (`FOMOSCAN_API_KEY`).
-- Web faucet / resolve routes in `apps/web` are server-side.
-
 ## How to verify
 
 ```bash
-pnpm install
-pnpm test
 cargo test -p fomo_pnl settle
 # full lifecycle (needs Anchor 0.32 + Solana CLI):
 anchor test

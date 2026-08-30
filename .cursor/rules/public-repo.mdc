@@ -9,7 +9,7 @@ This tree is the public GitHub repo (`ngmi`). Every change must leave a stranger
 
 ## Ship / keep local
 
-Ship product code, `LICENSE`, `NOTICE`, `AUDIT.md`, `SECURITY.md`, `docs/UPSTREAM.md`, `.agents/skills/`, and this rule.
+Ship product code, `LICENSE`, `NOTICE`, `AUDIT.md`, `SECURITY.md`, `docs/UPSTREAM.md`, `docs/audit/`, `.agents/skills/`, and this rule. Published audit scope is `programs/fomo-pnl` only — do not write `docs/audit/` as if the tote UI were open source.
 
 Never commit `.env`, keypairs, `id.json`, tokenized RPC URLs, or `docs/plans/` / `docs/ideation/` (competition notes). Those stay gitignored.
 
@@ -20,7 +20,7 @@ Never commit `.env`, keypairs, `id.json`, tokenized RPC URLs, or `docs/plans/` /
 
 ## Keep the first-read true
 
-When you add an instruction, privileged role, program id, env var, or settle rule, update the matching public file in the **same** change: `.env.example`, root `README.md` env/verify section, `AUDIT.md`, `programs/fomo-pnl/README.md`. Do not leave AUDIT.md describing yesterday's surface.
+When you add an instruction, privileged role, program id, env var, or settle rule, update the matching public file in the **same** change: `.env.example`, root `README.md` env/verify section, `AUDIT.md`, `programs/fomo-pnl/README.md`. Do not leave AUDIT.md describing yesterday's surface. After a CPI/PDA/instruction change, re-run the six-pattern scan and add a **new dated file** under `docs/audit/` — do not rewrite an old report to look green.
 
 `docs/UPSTREAM.md` is the human delta vs SivaramPg `3353bc02`. New product/security behavior vs that template gets a table row. Leftovers (`InvalidAdmin` on claim owner, unused `max_fee_bps`) stay listed until actually fixed.
 

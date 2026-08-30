@@ -1,6 +1,6 @@
 # Security
 
-This program is unaudited until an engagement is published. It is derived from an educational pot template; see [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md).
+On-chain review lives in [docs/audit/](docs/audit/). It is a Trail of Bits six-pattern pass, not a Big-4 audit. Derived from an educational pot template; see [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md).
 
 ## Report a vulnerability
 
@@ -17,11 +17,11 @@ We will acknowledge reports and fix or document trust assumptions before any mai
 ## Trust assumptions (not bugs by themselves)
 
 - `config.resolver` is a trusted oracle. The program does not fetch FomoScan on-chain.
-- The server keypair that signs resolve / faucet must stay off the client.
+- Whoever holds `config.resolver` is trusted to post an honest `end_pnl_usd`. That key is off-chain and not part of this repo’s published surface.
 - Upgrade authority on a live program must not be a hot single key before mainnet.
 
 ## Scope
 
-In scope: `programs/fomo-pnl`, the keeper decision path, and server-side signing in `apps/web`.
+In scope: `programs/fomo-pnl`.
 
-Out of scope: FomoScan availability, third-party RPC honesty, and phishing of user wallets.
+Out of scope: tote UI, keeper, FomoScan availability, third-party RPC honesty, and phishing of user wallets.

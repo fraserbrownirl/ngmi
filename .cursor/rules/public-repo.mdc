@@ -1,0 +1,35 @@
+---
+description: Keep the public NGMI repo stranger- and auditor-ready as the product changes
+alwaysApply: true
+---
+
+# Public repo presentation
+
+This tree is the public GitHub repo (`ngmi`). Every change must leave a stranger able to clone, verify, and audit. The operator's score is that first-read, not a green CI check alone.
+
+## Ship / keep local
+
+Ship product code, `LICENSE`, `NOTICE`, `AUDIT.md`, `SECURITY.md`, `docs/UPSTREAM.md`, `.agents/skills/`, and this rule.
+
+Never commit `.env`, keypairs, `id.json`, tokenized RPC URLs, or `docs/plans/` / `docs/ideation/` (competition notes). Those stay gitignored.
+
+```
+# BAD — new server secret only in .env
+# GOOD — empty key in .env.example + one README env-table row, same change
+```
+
+## Keep the first-read true
+
+When you add an instruction, privileged role, program id, env var, or settle rule, update the matching public file in the **same** change: `.env.example`, root `README.md` env/verify section, `AUDIT.md`, `programs/fomo-pnl/README.md`. Do not leave AUDIT.md describing yesterday's surface.
+
+`docs/UPSTREAM.md` is the human delta vs SivaramPg `3353bc02`. New product/security behavior vs that template gets a table row. Leftovers (`InvalidAdmin` on claim owner, unused `max_fee_bps`) stay listed until actually fixed.
+
+## History and license
+
+Do not squash, rebase, or amend away `6e9dde4` (reconstructed template baseline). Reviewers use `git diff 6e9dde4 HEAD -- programs/fomo-pnl`. New work is new commits on top.
+
+New crates/packages get `license = "MIT"` / `"license": "MIT"`. Keep Sivaram attribution in `NOTICE`.
+
+## Tone
+
+README is a spec sheet (one-line product, layout, pins, verify). Not a pitch. No private canvas paths, no "you are the build agent" in user-facing docs. `AGENTS.md` is the deploy playbook; it does not leak strategy.

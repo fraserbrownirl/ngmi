@@ -2,6 +2,8 @@
 
 Solana-only. Anchor pot in `programs/fomo-pnl`. SPL USDC. FomoScan `window=all` `pnl`. Not Base. Not Robinhood.
 
+Public GitHub: keep the stranger/auditor first-read true. Rule: `.cursor/rules/public-repo.mdc`.
+
 ## Skills (read before Solana work)
 
 1. [`.agents/skills/solana-dev/SKILL.md`](.agents/skills/solana-dev/SKILL.md) — toolchain, `anchor build` / test / deploy, Kit wallet, Surfpool, compatibility matrix, `references/anchor/migrating-v0.32-to-v1.md`.

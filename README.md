@@ -1,8 +1,8 @@
 # NGMI
 
-Will this FOMO trader’s **leaderboard total PnL** print over **$X** before this **datetime**?
+Will this FOMO or PumpFun trader’s **leaderboard total PnL** print over **$X** before this **datetime**?
 
-Binary USDC pots on Solana. One data source: [FomoScan](https://api.fomoscan.sh/docs) — `GET /v2/leaderboard/traders?window=all`, field `pnl`. A pot may be created only if the handle is on the current top-25 `all` board and `T` is within three days.
+Binary USDC pots on Solana. A pot may be created only if the handle is on the current top-25 `all` board and `T` is within three days.
 
 Default settle is **first-print**: the next board print over the mark resolves YES and closes betting. **Close-at-T** waits for the deadline print. Off-board at T cancels. Empty opposing pool cancels (refunds). YES iff `end_pnl >= threshold`. The program does not call FomoScan; a dedicated resolver posts `end_pnl_usd`.
 
@@ -30,18 +30,10 @@ packages/shared/     6-decimal compare + rake helpers
 
 Anchor **0.32.1** · Rust **1.89.0** · pnpm 10 · Node 22+. Stay on Anchor 0.32 for the first deploy ([AGENTS.md](AGENTS.md)).
 
-## Env
+## Roadmap
 
-Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the board API.
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `FOMOSCAN_API_KEY` | yes (board client) | FomoScan bearer token |
-| `FOMOSCAN_API_KEY_2` | no | Spare key for a one-shot cache seed |
-| `FOMO_SERVER_KEYPAIR` | no locally | JSON byte array; else `~/.config/solana/id.json` |
-| `SOLANA_RPC_URL` | no | Scripts; defaults to public devnet |
-
-Never commit a real keypair or `.env`.
+Clawpump Ansemhack and bootstrap - first agent constantly analysing $NGMI buy and burn and other metrics
+Agentic Company - rake admin key to agent for constant data driven optimisation
 
 ## Verify
 

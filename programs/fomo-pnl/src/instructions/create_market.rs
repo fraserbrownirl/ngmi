@@ -1,9 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{transfer, Token, TokenAccount, Transfer};
 
-use crate::constants::MAX_QUESTION_LENGTH;
+use crate::constants::{
+    resolution_in_window, FOUNDER_BPS, SETTLE_CLOSE_AT_T, SETTLE_FIRST_PRINT,
+};
 use crate::error::PredictionMarketError;
-use crate::state::{Config, Market, MarketState, Outcome};
+use crate::state::{Config, Market, MarketState, Outcome, Rake};
 
 #[derive(Accounts)]
 pub struct CreateMarket<'info> {
@@ -18,6 +20,9 @@ pub struct CreateMarket<'info> {
     )]
     pub config: Account<'info, Config>,
 
+    #[account(seeds = [Rake::SEED], bump = rake.bump)]
+    pub rake: Account<'info, Rake>,
+
     #[account(
         init,
         payer = creator,
@@ -27,7 +32,6 @@ pub struct CreateMarket<'info> {
     )]
     pub market: Account<'info, Market>,
 
-    /// Market vault for holding tokens
     #[account(
         init,
         payer = creator,
@@ -38,13 +42,9 @@ pub struct CreateMarket<'info> {
     )]
     pub market_vault: Account<'info, TokenAccount>,
 
-    /// Token mint
-    #[account(
-        constraint = token_mint.key() == config.token_mint
-    )]
+    #[account(constraint = token_mint.key() == config.token_mint)]
     pub token_mint: Account<'info, anchor_spl::token::Mint>,
 
-    /// Creator's token account (for fee payment)
     #[account(
         mut,
         token::mint = token_mint,
@@ -52,11 +52,7 @@ pub struct CreateMarket<'info> {
     )]
     pub creator_token_account: Account<'info, TokenAccount>,
 
-    /// Fee recipient's token account
-    #[account(
-        mut,
-        token::mint = token_mint
-    )]
+    #[account(mut, token::mint = token_mint)]
     pub fee_recipient_token_account: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
@@ -65,63 +61,70 @@ pub struct CreateMarket<'info> {
 
 pub fn handler(
     ctx: Context<CreateMarket>,
-    question: String,
+    fomo_user_id: [u8; 16],
+    threshold_usd: i64,
     resolution_time: i64,
+    start_pnl_usd: i64,
     fee_amount: u64,
+    settle_kind: u8,
 ) -> Result<()> {
-    // Validations
-    require!(!question.is_empty(), PredictionMarketError::EmptyQuestion);
+    require!(fomo_user_id != [0u8; 16], PredictionMarketError::InvalidFomoUserId);
     require!(
-        question.len() <= MAX_QUESTION_LENGTH,
-        PredictionMarketError::QuestionTooLong
+        settle_kind == SETTLE_CLOSE_AT_T || settle_kind == SETTLE_FIRST_PRINT,
+        PredictionMarketError::InvalidSettleKind
+    );
+    require!(
+        start_pnl_usd < threshold_usd,
+        PredictionMarketError::AlreadyAboveThreshold
     );
 
     let clock = Clock::get()?;
     require!(
-        resolution_time > clock.unix_timestamp,
+        resolution_in_window(clock.unix_timestamp, resolution_time),
         PredictionMarketError::InvalidResolutionTime
     );
 
-    // Transfer fee if applicable
     if fee_amount > 0 {
         let cpi_accounts = Transfer {
             from: ctx.accounts.creator_token_account.to_account_info(),
             to: ctx.accounts.fee_recipient_token_account.to_account_info(),
             authority: ctx.accounts.creator.to_account_info(),
         };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        transfer(cpi_ctx, fee_amount)?;
+        transfer(
+            CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts),
+            fee_amount,
+        )?;
     }
 
-    // Increment market counter
     let config = &mut ctx.accounts.config;
     config.market_counter = config
         .market_counter
         .checked_add(1)
         .ok_or(PredictionMarketError::Overflow)?;
 
-    // Create market
     let market = &mut ctx.accounts.market;
-    market.id = config.market_counter;
-    market.question = question;
+    market.market_id = config.market_counter;
+    market.creator = ctx.accounts.creator.key();
+    market.fomo_user_id = fomo_user_id;
+    market.window = settle_kind;
+    market.threshold_usd = threshold_usd;
     market.resolution_time = resolution_time;
+    market.start_pnl_usd = start_pnl_usd;
+    market.created_at = clock.unix_timestamp;
+    market.end_pnl_usd = 0;
+    market.captured_at = 0;
     market.state = MarketState::Active;
     market.winning_outcome = Outcome::None;
     market.yes_pool = 0;
     market.no_pool = 0;
-    market.creation_fee = fee_amount;
-    market.creator = ctx.accounts.creator.key();
-    market.created_at = clock.unix_timestamp;
-    market.config_fee_recipient = config.fee_recipient;
-    market.config_max_fee_bps = config.max_fee_bps;
+    market.fee_amount = fee_amount;
+    market.rake_bps = ctx.accounts.rake.rake_bps;
+    market.burn_bps = ctx.accounts.rake.burn_bps;
+    market.agent_bps = ctx.accounts.rake.agent_bps;
+    market.creator_bps = ctx.accounts.rake.creator_bps;
+    market.founder_bps = FOUNDER_BPS;
+    market.rake_total = 0;
     market.bump = ctx.bumps.market;
     market.vault_bump = ctx.bumps.market_vault;
-
-    msg!("Market created");
-    msg!("Market ID: {}", market.id);
-    msg!("Question: {}", market.question);
-    msg!("Resolution Time: {}", market.resolution_time);
-
     Ok(())
 }

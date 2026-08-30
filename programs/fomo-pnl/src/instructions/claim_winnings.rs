@@ -58,10 +58,8 @@ pub fn handler(ctx: Context<ClaimWinnings>, market_id: u64) -> Result<()> {
 
     if market.state == MarketState::Resolved {
         if market.winning_outcome == Outcome::Yes && position.yes_bet > 0 {
-            // User bet on YES and YES won
             let winning_pool = market.yes_pool;
-            let losing_pool = market.no_pool;
-            // payout = user_bet + (user_bet * losing_pool) / winning_pool
+            let losing_pool = market.no_pool.saturating_sub(market.rake_total);
             let share = (position.yes_bet as u128)
                 .checked_mul(losing_pool as u128)
                 .ok_or(PredictionMarketError::Overflow)?
@@ -72,9 +70,8 @@ pub fn handler(ctx: Context<ClaimWinnings>, market_id: u64) -> Result<()> {
                 .checked_add(share as u64)
                 .ok_or(PredictionMarketError::Overflow)?;
         } else if market.winning_outcome == Outcome::No && position.no_bet > 0 {
-            // User bet on NO and NO won
             let winning_pool = market.no_pool;
-            let losing_pool = market.yes_pool;
+            let losing_pool = market.yes_pool.saturating_sub(market.rake_total);
             let share = (position.no_bet as u128)
                 .checked_mul(losing_pool as u128)
                 .ok_or(PredictionMarketError::Overflow)?

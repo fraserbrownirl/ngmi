@@ -1,0 +1,23 @@
+---
+description: Solana deploy skills handoff for the Fomopred build agent
+alwaysApply: true
+---
+
+# Solana deploy — skills handoff (23 Aug 2026)
+
+You are the **build** agent. A research session installed the deploy skills. Use them; do not invent a stack.
+
+Before any program, wallet, RPC, or deploy work, read:
+
+1. `.agents/skills/solana-dev/SKILL.md` (and the reference it points at for the task). This is the Solana Foundation playbook.
+2. `.agents/skills/solana-vulnerability-scanner/SKILL.md` after `anchor test`, before devnet-with-USDC or mainnet.
+
+Also read `AGENTS.md`.
+
+Constraints:
+
+- Venue is **Solana only**. Not Robinhood. Not Base.
+- Stay on **Anchor 0.32** for the first deploy if the workspace builds. The official skill defaults to 1.1.x — ignore that default until after a working 0.32 deploy. Migration note: `.agents/skills/solana-dev/references/anchor/migrating-v0.32-to-v1.md`.
+- Do not install extra Solana skills (Jupiter, Pump, hairyf dumps, GuiBibeau fork).
+- Live docs: `https://mcp.solana.com/mcp`.
+- First ship: `anchor test` → scanner → `anchor deploy --provider.cluster devnet` → Kit wallet in `apps/web` → keeper resolver key. Mainnet later.

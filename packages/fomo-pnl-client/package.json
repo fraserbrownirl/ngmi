@@ -1,0 +1,17 @@
+{
+  "name": "@fomopred/fomo-pnl-client",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/generated/index.ts",
+  "exports": {
+    ".": "./src/generated/index.ts"
+  },
+  "peerDependencies": {
+    "@solana/kit": ">=6.10"
+  },
+  "dependencies": {
+    "@solana/program-client-core": "^8.0.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@fomopred/fomoscan",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/client.ts",
+  "exports": {
+    ".": "./src/client.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

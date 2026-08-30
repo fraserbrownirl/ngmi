@@ -1,0 +1,9 @@
+{
+  "idl": "target/idl/fomo_pnl.json",
+  "scripts": {
+    "js": {
+      "from": "@codama/renderers-js",
+      "args": ["packages/fomo-pnl-client"]
+    }
+  }
+}

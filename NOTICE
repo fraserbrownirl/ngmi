@@ -1,0 +1,15 @@
+NGMI / fomopred
+Copyright (c) 2026 Fraser Brown
+
+This repository includes a Solana pot program derived from:
+
+  SivaramPg/solana-simple-prediction-market-contract
+  https://github.com/SivaramPg/solana-simple-prediction-market-contract
+  Snapshot: 3353bc02ca005eca73725a7231ff1578087a2eaa (MIT, educational, unaudited)
+
+The first git commit on this repository is a reconstructed, path-renamed
+copy of that snapshot (crate `prediction_market` → `fomo_pnl`) so reviewers
+can `git diff` the product changes. It is not a claim that this working
+tree was checked out from that SHA on day one.
+
+See docs/UPSTREAM.md for the human-readable delta.

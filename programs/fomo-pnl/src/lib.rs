@@ -1,90 +1,116 @@
-//! Simple Binary Prediction Market Program for Solana
-//!
-//! THIS PROGRAM IS FOR EDUCATIONAL PURPOSES ONLY. IT IS UNAUDITED AND
-//! SHOULD NOT BE USED IN PRODUCTION. THE AUTHORS ARE NOT RESPONSIBLE FOR
-//! ANY DAMAGES OR LOSSES THAT MAY RESULT FROM ITS USE.
+use anchor_lang::prelude::*;
 
 pub mod constants;
 pub mod error;
 pub mod instructions;
+pub mod settle;
 pub mod state;
 
-use anchor_lang::prelude::*;
+use instructions::*;
 
-pub use constants::*;
-pub use instructions::*;
-pub use state::*;
-
-declare_id!("6nPzFvBm1Eezmoa82w82XX3L6qNy1StVXDMf7QnF8zv");
+declare_id!("6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e");
 
 #[program]
 pub mod fomo_pnl {
     use super::*;
 
-    /// Initialize the prediction market program
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        fee_recipient: Pubkey,
-        max_fee_bps: u16,
-    ) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>, fee_recipient: Pubkey, max_fee_bps: u16) -> Result<()> {
         instructions::initialize::handler(ctx, fee_recipient, max_fee_bps)
     }
 
-    /// Update the global configuration (admin only)
-    pub fn update_config(
-        ctx: Context<UpdateConfig>,
-        fee_recipient: Pubkey,
-        max_fee_bps: u16,
-    ) -> Result<()> {
-        instructions::update_config::handler(ctx, fee_recipient, max_fee_bps)
-    }
-
-    /// Pause the contract (admin only)
-    pub fn pause(ctx: Context<Pause>) -> Result<()> {
-        instructions::pause::pause_handler(ctx)
-    }
-
-    /// Unpause the contract (admin only)
-    pub fn unpause(ctx: Context<Pause>) -> Result<()> {
-        instructions::pause::unpause_handler(ctx)
-    }
-
-    /// Create a new prediction market
     pub fn create_market(
         ctx: Context<CreateMarket>,
-        question: String,
+        fomo_user_id: [u8; 16],
+        threshold_usd: i64,
         resolution_time: i64,
+        start_pnl_usd: i64,
         fee_amount: u64,
+        settle_kind: u8,
     ) -> Result<()> {
-        instructions::create_market::handler(ctx, question, resolution_time, fee_amount)
+        instructions::create_market::handler(
+            ctx,
+            fomo_user_id,
+            threshold_usd,
+            resolution_time,
+            start_pnl_usd,
+            fee_amount,
+            settle_kind,
+        )
     }
 
-    /// Place a bet on a market
     pub fn place_bet(
         ctx: Context<PlaceBet>,
         market_id: u64,
-        outcome: Outcome,
+        outcome: state::Outcome,
         amount: u64,
     ) -> Result<()> {
         instructions::place_bet::handler(ctx, market_id, outcome, amount)
     }
 
-    /// Resolve a market (admin only)
     pub fn resolve_market(
         ctx: Context<ResolveMarket>,
         market_id: u64,
-        winning_outcome: Outcome,
+        end_pnl_usd: i64,
+        captured_at: i64,
     ) -> Result<()> {
-        instructions::resolve_market::handler(ctx, market_id, winning_outcome)
+        instructions::resolve_market::handler(ctx, market_id, end_pnl_usd, captured_at)
     }
 
-    /// Cancel a market (admin only)
     pub fn cancel_market(ctx: Context<CancelMarket>, market_id: u64) -> Result<()> {
         instructions::cancel_market::handler(ctx, market_id)
     }
 
-    /// Claim winnings from a resolved or cancelled market
     pub fn claim_winnings(ctx: Context<ClaimWinnings>, market_id: u64) -> Result<()> {
         instructions::claim_winnings::handler(ctx, market_id)
+    }
+
+    pub fn pause(ctx: Context<Pause>) -> Result<()> {
+        instructions::pause::pause_handler(ctx)
+    }
+
+    pub fn unpause(ctx: Context<Pause>) -> Result<()> {
+        instructions::pause::unpause_handler(ctx)
+    }
+
+    pub fn update_config(ctx: Context<UpdateConfig>, fee_recipient: Pubkey, max_fee_bps: u16) -> Result<()> {
+        instructions::update_config::handler(ctx, fee_recipient, max_fee_bps)
+    }
+
+    pub fn set_resolver(ctx: Context<SetResolver>, resolver: Pubkey) -> Result<()> {
+        instructions::set_resolver::handler(ctx, resolver)
+    }
+
+    pub fn init_rake(
+        ctx: Context<InitRake>,
+        owner: Pubkey,
+        founder: Pubkey,
+        rake_bps: u16,
+        burn_bps: u16,
+        agent_bps: u16,
+        creator_bps: u16,
+    ) -> Result<()> {
+        instructions::init_rake::handler(ctx, owner, founder, rake_bps, burn_bps, agent_bps, creator_bps)
+    }
+
+    pub fn set_rake(
+        ctx: Context<SetRake>,
+        rake_bps: u16,
+        burn_bps: u16,
+        agent_bps: u16,
+        creator_bps: u16,
+    ) -> Result<()> {
+        instructions::set_rake::handler(ctx, rake_bps, burn_bps, agent_bps, creator_bps)
+    }
+
+    pub fn transfer_rake_owner(ctx: Context<TransferRakeOwner>, new_owner: Pubkey) -> Result<()> {
+        instructions::transfer_rake_owner::handler(ctx, new_owner)
+    }
+
+    pub fn accept_rake_owner(ctx: Context<AcceptRakeOwner>) -> Result<()> {
+        instructions::transfer_rake_owner::accept_handler(ctx)
+    }
+
+    pub fn set_founder(ctx: Context<SetFounder>, new_founder: Pubkey) -> Result<()> {
+        instructions::set_founder::handler(ctx, new_founder)
     }
 }

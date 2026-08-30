@@ -1,8 +1,9 @@
 [package]
 name = "fomo_pnl"
 version = "0.1.0"
-description = "Simple Binary Prediction Market - Educational purposes only, UNAUDITED"
+description = "FOMO leaderboard PnL pot market"
 edition = "2021"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "lib"]

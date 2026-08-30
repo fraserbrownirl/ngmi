@@ -2,7 +2,7 @@
 
 Solana-only. Anchor pot in `programs/fomo-pnl`. SPL USDC. FomoScan `window=all` `pnl`. Not Base. Not Robinhood.
 
-Public GitHub: keep the stranger/auditor first-read true. Rule: `.cursor/rules/public-repo.mdc`.
+Public GitHub: keep the stranger/auditor first-read true. Rule: `.cursor/rules/public-repo.mdc`. Tote UI (`apps/web`) is local only — never commit it.
 
 ## Skills (read before Solana work)
 

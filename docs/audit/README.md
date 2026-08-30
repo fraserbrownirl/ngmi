@@ -5,6 +5,7 @@ Published review is **`programs/fomo-pnl` only**. Off-chain clients (tote UI, ke
 | Date | What | Result |
 |---|---|---|
 | 2026-08-30 | Trail of Bits six-pattern scan ([skill](../../.agents/skills/solana-vulnerability-scanner/SKILL.md)) | No hits. Notes only. |
+| 2026-08-30 | Reconfirm after unpublishing the tote UI | Same six-pattern pass. Program unchanged. |
 
 - Engagement brief (roles, settle rules, what to send an external auditor): [`../../AUDIT.md`](../../AUDIT.md)
 - Parent-template delta: [`../UPSTREAM.md`](../UPSTREAM.md)

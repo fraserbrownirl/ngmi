@@ -6,11 +6,12 @@ Solana pots. One API: [FomoScan](https://api.fomoscan.sh/docs). PnL is `GET /v2/
 
 MIT. Derived from an educational binary pot — see [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md). Program audit: [docs/audit/](docs/audit/). Engagement brief: [AUDIT.md](AUDIT.md). Reports: [SECURITY.md](SECURITY.md).
 
+The tote UI is **not** in this repository.
+
 ## Layout
 
 ```
 programs/fomo-pnl/  Anchor pot program (Solana, SPL USDC)
-apps/web/           Tote board + pots
 services/fomoscan/  Handle + leaderboard client
 services/keeper/    Settles due pots from one board print
 packages/shared/    Shared 6-decimal compare
@@ -28,16 +29,14 @@ Stay on Anchor 0.32 for the first deploy. See [AGENTS.md](AGENTS.md).
 
 ## Env
 
-Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required for the board.
+Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the board API.
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `FOMOSCAN_API_KEY` | yes (board) | FomoScan bearer token |
+| `FOMOSCAN_API_KEY` | yes (board client) | FomoScan bearer token |
 | `FOMOSCAN_API_KEY_2` | no | Spare key for a one-shot cache seed |
 | `FOMO_SERVER_KEYPAIR` | no locally | JSON byte array; else `~/.config/solana/id.json` |
-| `NEXT_PUBLIC_SOLANA_RPC_URL` | no | Defaults to `https://api.devnet.solana.com` |
-| `SOLANA_RPC_URL` | no | Scripts; same default |
-| `APP_URL` | no | Seed/e2e; defaults to `http://localhost:3000` |
+| `SOLANA_RPC_URL` | no | Scripts; defaults to `https://api.devnet.solana.com` |
 
 Never commit a real keypair or `.env`.
 
@@ -46,9 +45,8 @@ Never commit a real keypair or `.env`.
 ```bash
 pnpm install
 pnpm test
-# cargo test -p fomo_pnl settle   # comparison unit tests
+cargo test -p fomo_pnl settle
 # anchor test                     # full Solana lifecycle (needs Anchor CLI)
-pnpm dev
 ```
 
 Review the pot vs the parent template:

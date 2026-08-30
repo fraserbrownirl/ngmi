@@ -10,13 +10,14 @@ cargo test -p fomo_pnl settle
 anchor test
 ```
 
-Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required for the web board.
+Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call FomoScan.
 
 ## Layout
 
 - On-chain pot: `programs/fomo-pnl`
-- Tote board: `apps/web`
 - Board client + keeper: `services/fomoscan`, `services/keeper`
+
+The tote UI is not published.
 
 ## Agents
 

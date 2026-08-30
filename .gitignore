@@ -16,8 +16,7 @@ dist
 .DS_Store
 *.tsbuildinfo
 .vercel
-apps/web/.next
-apps/web/data
+apps/web
 data/*.json
 docs/plans/
 docs/ideation/

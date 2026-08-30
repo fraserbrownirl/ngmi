@@ -2,30 +2,33 @@
 
 Will this FOMO trader’s **leaderboard total PnL** print over **$X** before this **datetime**?
 
-Solana pots. One API: [FomoScan](https://api.fomoscan.sh/docs). PnL is `GET /v2/leaderboard/traders?window=all` field `pnl`. Create only if the trader is on the current top-25 `all` board and `T` is within three days. Default settle is first-print: the next board print over the mark resolves YES and closes betting. Close-at-T waits for the deadline print. Off-board at T cancels. No public resolve.
+Binary USDC pots on Solana. One data source: [FomoScan](https://api.fomoscan.sh/docs) — `GET /v2/leaderboard/traders?window=all`, field `pnl`. A pot may be created only if the handle is on the current top-25 `all` board and `T` is within three days.
 
-MIT. Derived from an educational binary pot — see [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md). Program audit: [docs/audit/](docs/audit/). Engagement brief: [AUDIT.md](AUDIT.md). Reports: [SECURITY.md](SECURITY.md).
+Default settle is **first-print**: the next board print over the mark resolves YES and closes betting. **Close-at-T** waits for the deadline print. Off-board at T cancels. Empty opposing pool cancels (refunds). YES iff `end_pnl >= threshold`. The program does not call FomoScan; a dedicated resolver posts `end_pnl_usd`.
 
-The tote UI is **not** in this repository.
+MIT. Tote UI is not in this repository.
+
+**Program id** (localnet / devnet): `6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e`
+
+| | |
+|---|---|
+| Audit | [docs/audit/](docs/audit/) |
+| Brief | [AUDIT.md](AUDIT.md) |
+| Report a bug | [SECURITY.md](SECURITY.md) |
+| vs parent template | [docs/UPSTREAM.md](docs/UPSTREAM.md) |
 
 ## Layout
 
 ```
-programs/fomo-pnl/  Anchor pot program (Solana, SPL USDC)
-services/fomoscan/  Handle + leaderboard client
-services/keeper/    Settles due pots from one board print
-packages/shared/    Shared 6-decimal compare
+programs/fomo-pnl/   Anchor pot (SPL USDC)
+services/fomoscan/   Leaderboard client
+services/keeper/     Settles due pots from one board print
+packages/shared/     6-decimal compare + rake helpers
 ```
-
-Program id (localnet / devnet): `6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e`
 
 ## Toolchain
 
-- Anchor **0.32.1** (`Anchor.toml`)
-- Rust **1.89.0** (`rust-toolchain.toml`)
-- pnpm 10, Node 22+
-
-Stay on Anchor 0.32 for the first deploy. See [AGENTS.md](AGENTS.md).
+Anchor **0.32.1** · Rust **1.89.0** · pnpm 10 · Node 22+. Stay on Anchor 0.32 for the first deploy ([AGENTS.md](AGENTS.md)).
 
 ## Env
 
@@ -36,7 +39,7 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `FOMOSCAN_API_KEY` | yes (board client) | FomoScan bearer token |
 | `FOMOSCAN_API_KEY_2` | no | Spare key for a one-shot cache seed |
 | `FOMO_SERVER_KEYPAIR` | no locally | JSON byte array; else `~/.config/solana/id.json` |
-| `SOLANA_RPC_URL` | no | Scripts; defaults to `https://api.devnet.solana.com` |
+| `SOLANA_RPC_URL` | no | Scripts; defaults to public devnet |
 
 Never commit a real keypair or `.env`.
 
@@ -46,11 +49,19 @@ Never commit a real keypair or `.env`.
 pnpm install
 pnpm test
 cargo test -p fomo_pnl settle
-# anchor test                     # full Solana lifecycle (needs Anchor CLI)
+# anchor test    # full Solana lifecycle (needs Anchor CLI)
 ```
 
-Review the pot vs the parent template:
+Product changes vs the parent pot:
 
 ```bash
 git diff $(git rev-list --max-parents=0 HEAD) HEAD -- programs/fomo-pnl
 ```
+
+## Acknowledgements
+
+The on-chain pot is specialized from [SivaramPg/solana-simple-prediction-market-contract](https://github.com/SivaramPg/solana-simple-prediction-market-contract) (MIT, educational). Snapshot and delta: [NOTICE](NOTICE), [docs/UPSTREAM.md](docs/UPSTREAM.md).
+
+Build playbook: the [Solana Foundation `solana-dev` skill](.agents/skills/solana-dev/SKILL.md) (Anchor 0.32, Kit, Surfpool).
+
+Security pass: the [Trail of Bits Solana vulnerability-scanner skill](.agents/skills/solana-vulnerability-scanner/SKILL.md) (six account-model patterns). Written report: [docs/audit/](docs/audit/).

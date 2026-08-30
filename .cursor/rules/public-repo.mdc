@@ -26,7 +26,7 @@ When you add an instruction, privileged role, program id, env var, or settle rul
 
 ## History and license
 
-Do not squash, rebase, or amend away `6e9dde4` (reconstructed template baseline). Reviewers use `git diff 6e9dde4 HEAD -- programs/fomo-pnl`. New work is new commits on top.
+Do not squash, rebase, or amend away the root commit (reconstructed template baseline). Reviewers use `git diff $(git rev-list --max-parents=0 HEAD) HEAD -- programs/fomo-pnl`. New work is new commits on top. After a history rewrite, update this line only if the review command changes.
 
 New crates/packages get `license = "MIT"` / `"license": "MIT"`. Keep Sivaram attribution in `NOTICE`.
 

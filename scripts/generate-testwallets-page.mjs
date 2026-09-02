@@ -75,9 +75,9 @@ const html = `<!doctype html>
         <a href="https://x.com/ngmidotmarkets">X</a>
         <a href="https://github.com/fraserbrownirl/ngmi">GitHub</a>
         <a href="https://github.com/fraserbrownirl/ngmi/blob/main/AUDIT.md">Audit</a>
-        <a href="/privacy.html">Privacy</a>
-        <a href="/terms.html">Terms</a>
-        <a href="/testwallets.html" aria-current="page">Test Wallets</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/testwallets" aria-current="page">Test Wallets</a>
       </nav>
     </header>
 

@@ -13,6 +13,7 @@
   ],
   "rewrites": [
     { "source": "/testwallets", "destination": "/testwallets.html" },
+    { "source": "/testwallets/", "destination": "/testwallets.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" }
   ]

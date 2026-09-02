@@ -2,6 +2,7 @@
   "name": "ngmi-landing",
   "private": true,
   "scripts": {
-    "dev": "python3 -m http.server 4173"
+    "dev": "python3 -m http.server 4173",
+    "deploy": "node deploy.mjs"
   }
 }

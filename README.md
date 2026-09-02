@@ -2,13 +2,13 @@
 
 Will this FOMO or PumpFun trader’s **leaderboard total PnL** print over **$X** before this **datetime**?
 
-Binary USDC pots on Solana. A pot may be created only if the handle is on the current top-25 `all` board and `T` is within three days.
+Binary USDC pots on Solana. One data source: [FomoScan](https://api.fomoscan.sh/docs). FOMO pots judge `GET /v2/leaderboard/traders?window=all`, field `pnl`. Pump.fun pots judge a **cumulative** number: the tote sums the change in `pnlUsd` across `GET /v2/pump/leaderboard/traders?period=weekly` prints, because FomoScan has no pump `all` window and the weekly figure resets. A pot may be created only if the handle is on the current top-25 board and `T` is within three days.
 
-Default settle is **first-print**: the next board print over the mark resolves YES and closes betting. **Close-at-T** waits for the deadline print. Off-board at T cancels. Empty opposing pool cancels (refunds). YES iff `end_pnl >= threshold`. The program does not call FomoScan; a dedicated resolver posts `end_pnl_usd`.
+Default settle is **first-print**: the next board print over the mark, at or after the pot opened, resolves YES and closes betting. FOMO `window=all` is pulled hourly; pump.fun weekly is pulled daily (the fleet board only moves about once a day). A leftover file after a failed refresh does not first-print. **Close-at-T** waits for a print at or after T. Off-board at T cancels. Empty opposing pool cancels (refunds). YES iff `end_pnl >= threshold`. The program does not call FomoScan; a dedicated resolver posts `end_pnl_usd`.
 
 MIT. Tote UI is not in this repository.
 
-**Program id** (localnet / devnet): `6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e`
+**Program id** (localnet / devnet): `HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU`
 
 | | |
 |---|---|
@@ -20,10 +20,11 @@ MIT. Tote UI is not in this repository.
 ## Layout
 
 ```
-programs/fomo-pnl/   Anchor pot (SPL USDC)
-services/fomoscan/   Leaderboard client
-services/keeper/     Settles due pots from one board print
-packages/shared/     6-decimal compare + rake helpers
+programs/fomo-pnl/        Anchor pot (SPL USDC)
+services/fomoscan/        Leaderboard client
+services/keeper/          Settles due pots from one board print
+services/telegram-bot/    Public-group feedback Menu
+packages/shared/          6-decimal compare + rake helpers
 ```
 
 ## Toolchain
@@ -34,6 +35,40 @@ Anchor **0.32.1** · Rust **1.89.0** · pnpm 10 · Node 22+. Stay on Anchor 0.32
 
 Clawpump Ansemhack and bootstrap - first agent constantly analysing $NGMI buy and burn and other metrics
 Agentic Company - rake admin key to agent for constant data driven optimisation
+
+## Env
+
+Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the board API.
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `FOMOSCAN_API_KEY` | yes (board client) | FomoScan bearer token |
+| `FOMOSCAN_API_KEY_2` | no | Spare key for a one-shot cache seed |
+| `FOMOSCAN_API_KEY_3` | no | Paid / extra live board key |
+| `FOMO_SERVER_KEYPAIR` | no locally | JSON byte array; else `~/.config/solana/id.json` |
+| `SOLANA_RPC_URL` | no | Scripts; defaults to public devnet |
+| `TWITTERAPI_API_KEY` | no | TwitterAPI.io key; platform events post to `@ngmi_cto` and new originals copy into the group |
+| `TWITTERAPI_PROXY` | first login | Residential proxy for the one-time CTO login |
+| `TWITTER_CTO_USERNAME` | no | Handle to post as; default `ngmi_cto` |
+| `TWITTER_CTO_EMAIL` | first login | CTO account email (not needed once the session is Active) |
+| `TWITTER_CTO_PASSWORD` | first login | CTO account password |
+| `TWITTER_CTO_TOTP_SECRET` | first login | TOTP seed if 2FA is on |
+| `TWITTER_CTO_AUTH_TOKEN` | no | Optional X `auth_token` cookie to resume a session |
+| `X_CLIENT_ID` | no | OAuth 2.0 Client ID fallback if TwitterAPI.io is unset |
+| `X_CLIENT_SECRET` | no | OAuth 2.0 Client Secret |
+| `X_OAUTH_REDIRECT_URI` | no | Portal callback; default `http://localhost:3000/api/oauth/x/callback` |
+| `NEXT_PUBLIC_APP_URL` | no | Canonical origin for that callback |
+| `SOLANA_MAINNET_RPC_URL` | no | Holdings lookup for tweets; public mainnet if unset |
+| `ADMIN_TOKEN` | no | If set, gates operator FomoScan/pot stats |
+| `TELEGRAM_BOT_TOKEN` | yes (feedback bot) | BotFather token |
+| `TELEGRAM_GROUP_ID` | no | If set, Menu and posts are scoped to that group; otherwise any group the bot is in |
+| `TWITTER_BEARER_TOKEN` | no | X app Bearer; if set, new official posts are copied into the group |
+| `TWITTER_USERNAME` | no | Handle to share; default `ngmidotmarkets` |
+| `TWITTERAPI_CTO_USERNAME` | no | Handle for the TwitterAPI.io group poll; default `ngmi_cto` |
+
+Never commit a real keypair, X token, bot token, or `.env`. Platform events post to `@ngmi_cto` via TwitterAPI.io when `TWITTERAPI_API_KEY` is set: new market, new bet (side, stake, wallet, book), and resolved YES/NO. First login also needs `TWITTERAPI_PROXY` plus `TWITTER_CTO_*`; later posts only need the API key. Unset `TWITTERAPI_API_KEY` falls back to the connected OAuth account (`X_CLIENT_ID`); unset both leaves posting a no-op.
+
+Group feedback: add the bot to the public group (admin if you want it to delete the raw `/feedback` command). Then `pnpm --filter @fomopred/telegram-bot start`. Members use the Menu next to the message field. Exploitable bugs still go through [SECURITY.md](SECURITY.md), not that channel. With `TWITTER_BEARER_TOKEN` set, the same process copies new original posts from `TWITTER_USERNAME` (default `ngmidotmarkets`) into that group every 15 minutes. The first poll only records the latest id (no history dump). Unset the Bearer to leave sharing off. X credits must be > $0 or those reads fail. With `TWITTERAPI_API_KEY` set, a second 15-minute poll copies new original posts from `TWITTERAPI_CTO_USERNAME` (default `ngmi_cto`) via TwitterAPI.io `GET /twitter/user/last_tweets` (replies, retweets, and quotes skipped). An empty first poll seeds id `0` so the next original is posted, not skipped as history. Unset the TwitterAPI.io key to leave CTO sharing off.
 
 ## Verify
 

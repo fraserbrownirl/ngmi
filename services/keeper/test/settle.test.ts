@@ -39,6 +39,11 @@ describe("decideFromBoard", () => {
     expect(decideFromBoard(market, null, atT)).toEqual({ kind: "cancel", reason: "fomoscan_down" });
   });
 
+  it("waits after T for a print at or after T", () => {
+    const board = { capturedAt: atT - 1, traders: [{ id: "aaa", pnl: 100 }] };
+    expect(decideFromBoard(market, board, atT)).toEqual({ kind: "cancel", reason: "not_due" });
+  });
+
   it("skips before T", () => {
     const board = { traders: [{ id: "aaa", pnl: 100 }] };
     expect(decideFromBoard(market, board, atT - 1)).toEqual({ kind: "cancel", reason: "not_due" });
@@ -63,6 +68,42 @@ describe("decideFromBoard", () => {
     expect(
       decideFromBoard({ ...market, settleKind: SETTLE_FIRST_PRINT }, board, atT - 1),
     ).toEqual({ kind: "cancel", reason: "not_due" });
+  });
+
+  it("first-print ignores a print from before the pot opened", () => {
+    const opened = market.resolutionTime - 5;
+    const board = { capturedAt: (opened - 10) * 1000, traders: [{ id: "aaa", pnl: 100 }] };
+    expect(
+      decideFromBoard(
+        { ...market, settleKind: SETTLE_FIRST_PRINT, createdAt: opened },
+        board,
+        atT - 1,
+      ),
+    ).toEqual({ kind: "cancel", reason: "not_due" });
+  });
+
+  it("first-print reports when the print is after the pot opened", () => {
+    const opened = market.resolutionTime - 20;
+    const board = { capturedAt: (opened + 5) * 1000, traders: [{ id: "aaa", pnl: 100 }] };
+    expect(
+      decideFromBoard(
+        { ...market, settleKind: SETTLE_FIRST_PRINT, createdAt: opened },
+        board,
+        atT - 1,
+      ),
+    ).toMatchObject({ kind: "report", yes: true });
+  });
+
+  it("first-print ignores a stale leftover file", () => {
+    const board = { capturedAt: atT - 1, stale: true, traders: [{ id: "aaa", pnl: 100 }] };
+    expect(
+      decideFromBoard({ ...market, settleKind: SETTLE_FIRST_PRINT }, board, atT - 1),
+    ).toEqual({ kind: "cancel", reason: "not_due" });
+  });
+
+  it("at T a stale leftover file still posts if it was printed at or after T", () => {
+    const board = { capturedAt: atT, stale: true, traders: [{ id: "aaa", pnl: 100 }] };
+    expect(decideFromBoard(market, board, atT)).toMatchObject({ kind: "report", yes: true });
   });
 });
 

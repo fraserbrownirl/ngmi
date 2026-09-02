@@ -17,6 +17,7 @@ Also read `AGENTS.md`.
 Constraints:
 
 - Venue is **Solana only**. Not Robinhood. Not Base.
+- **Never close a program to fund a deploy.** `solana program close` burns the program id permanently and orphans every account it owns. Redeploys upgrade in place onto the same id (`anchor upgrade` / `solana program deploy` with the existing program keypair) — the rent is only tied up, not spent. If the deployer can't cover a deploy, stop and report; do not self-fund from chain state the key controls. Irreversible authority actions (program close, `set-authority`, mint/freeze revocation) need explicit operator approval on every cluster, devnet included.
 - Stay on **Anchor 0.32** for the first deploy if the workspace builds. The official skill defaults to 1.1.x — ignore that default until after a working 0.32 deploy. Migration note: `.agents/skills/solana-dev/references/anchor/migrating-v0.32-to-v1.md`.
 - Do not install extra Solana skills (Jupiter, Pump, hairyf dumps, GuiBibeau fork).
 - Live docs: `https://mcp.solana.com/mcp`.

@@ -26,6 +26,96 @@ export type Leaderboard = {
   traders: LeaderboardEntry[];
 };
 
+export type PumpPeriod = "daily" | "weekly" | "monthly";
+
+export type PumpLeaderboardEntry = {
+  rank: number;
+  wallet: string;
+  username: string | null;
+  isVerified?: boolean | null;
+  pnlSol?: number | null;
+  pnlUsd: number | null;
+  pnlPercent?: number | null;
+  realizedPnlUsd?: number | null;
+  unrealizedPnlUsd?: number | null;
+};
+
+export type PumpLeaderboard = {
+  period: PumpPeriod;
+  capturedAt?: number | null;
+  traders: PumpLeaderboardEntry[];
+};
+
+export type FomoScanMe = {
+  plan: string | null;
+  scopes: string[];
+  key: {
+    prefix: string | null;
+    name: string | null;
+    environment: string | null;
+  };
+  entitlement: {
+    monthlyUnits: number | null;
+    ratePerMinute: number | null;
+    unmetered: boolean;
+  };
+  usage: {
+    period: string | null;
+    /** Last ms of `usage.period` (UTC YYYY-MM). Unused monthly CU does not roll. */
+    periodEndsAt: number | null;
+    unitsUsed: number | null;
+    unitsRemaining: number | null;
+    additionalUnits: number | null;
+  };
+};
+
+function numOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function strOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/** UTC billing bucket `YYYY-MM` → last millisecond of that month. */
+export function periodEndsAt(period: string | null): number | null {
+  if (!period || !/^\d{4}-\d{2}$/.test(period)) return null;
+  const year = Number(period.slice(0, 4));
+  const month = Number(period.slice(5, 7));
+  if (month < 1 || month > 12) return null;
+  return Date.UTC(year, month, 1) - 1;
+}
+
+export function normalizeMe(raw: Record<string, unknown>): FomoScanMe {
+  const entitlement = (raw.entitlement ?? {}) as Record<string, unknown>;
+  const usage = (raw.usage ?? {}) as Record<string, unknown>;
+  const key = (raw.key ?? {}) as Record<string, unknown>;
+  const period = strOrNull(usage.period);
+  return {
+    plan: strOrNull(raw.plan),
+    scopes: Array.isArray(raw.scopes)
+      ? raw.scopes.filter((s): s is string => typeof s === "string")
+      : [],
+    key: {
+      prefix: strOrNull(key.prefix),
+      name: strOrNull(key.name),
+      environment: strOrNull(key.environment),
+    },
+    entitlement: {
+      monthlyUnits: numOrNull(entitlement.monthlyUnits),
+      ratePerMinute: numOrNull(entitlement.ratePerMinute),
+      unmetered: entitlement.unmetered === true,
+    },
+    usage: {
+      period,
+      periodEndsAt: periodEndsAt(period),
+      unitsUsed: numOrNull(usage.unitsUsed),
+      unitsRemaining: numOrNull(usage.unitsRemaining),
+      additionalUnits: numOrNull(usage.additionalUnits),
+    },
+  };
+}
+
 export class FomoScanError extends Error {
   constructor(
     message: string,
@@ -51,6 +141,12 @@ export function spareApiKey(env: NodeJS.ProcessEnv = process.env): string | null
   return key || null;
 }
 
+/** Optional third live key (paid board). Never required. */
+export function extraApiKey(env: NodeJS.ProcessEnv = process.env): string | null {
+  const key = env.FOMOSCAN_API_KEY_3?.trim();
+  return key || null;
+}
+
 export function createFomoScan(apiKey = requireApiKey()) {
   async function request<T>(path: string): Promise<T> {
     const res = await fetch(`${BASE}${path}`, {
@@ -65,7 +161,7 @@ export function createFomoScan(apiKey = requireApiKey()) {
 
   return {
     async me() {
-      return request<Record<string, unknown>>("/v2/me");
+      return normalizeMe(await request<Record<string, unknown>>("/v2/me"));
     },
 
     async userByHandle(handle: string): Promise<FomoUser> {
@@ -84,10 +180,42 @@ export function createFomoScan(apiKey = requireApiKey()) {
       return normalizeBoard(raw);
     },
 
+    /** Same 250 CU board pull as `tradersBoard`. Not a per-trader endpoint. */
     async pnlForId(id: string, atMs?: number): Promise<LeaderboardEntry | null> {
       const board = await this.tradersBoard(atMs);
       return board.traders.find((t) => t.id === id) ?? null;
     },
+
+    /** pump.fun top 100, realized+unrealized. 250 CU. No `all` window. */
+    async pumpTradersBoard(period: PumpPeriod = "weekly", atMs?: number): Promise<PumpLeaderboard> {
+      const q = new URLSearchParams({ period });
+      if (atMs !== undefined) q.set("at", String(atMs));
+      const raw = await request<Record<string, unknown>>(`/v2/pump/leaderboard/traders?${q}`);
+      return normalizePumpBoard(raw, period);
+    },
+  };
+}
+
+export function normalizePumpBoard(
+  raw: Record<string, unknown>,
+  fallback: PumpPeriod = "weekly",
+): PumpLeaderboard {
+  const period = raw.period;
+  const entries = (raw.entries ?? raw.traders ?? []) as Record<string, unknown>[];
+  return {
+    period: period === "daily" || period === "weekly" || period === "monthly" ? period : fallback,
+    capturedAt: numOrNull(raw.capturedAt),
+    traders: entries.map((row, i) => ({
+      rank: typeof row.rank === "number" ? row.rank : i + 1,
+      wallet: typeof row.wallet === "string" ? row.wallet : "",
+      username: strOrNull(row.username),
+      isVerified: typeof row.isVerified === "boolean" ? row.isVerified : null,
+      pnlSol: numOrNull(row.pnlSol),
+      pnlUsd: numOrNull(row.pnlUsd),
+      pnlPercent: numOrNull(row.pnlPercent),
+      realizedPnlUsd: numOrNull(row.realizedPnlUsd),
+      unrealizedPnlUsd: numOrNull(row.unrealizedPnlUsd),
+    })),
   };
 }
 

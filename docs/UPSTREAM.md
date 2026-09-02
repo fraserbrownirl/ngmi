@@ -21,7 +21,7 @@ After this repo is on GitHub, the same range is `compare/<first>...<second>` on 
 | Single admin for pause, config, resolve, cancel | Admin / resolver / rake owner / founder | Least privilege. Cancel after T is resolver, not admin. |
 | Snapshots `config_max_fee_bps` onto the market at create | Does **not** snapshot `max_fee_bps`. Snapshots rake bps (`rake_bps`, burn/agent/creator/founder) at create | Later `set_rake` must not rewrite open pots. Creation fee is still a flat `fee_amount`. |
 | No rake | Losing-pool rake split to founder, burn, agent, creator treasuries; founder/creator ATAs re-checked in the handler | Protocol take is on-chain and bounded (`validate_rake`). |
-| — | Keeper + Next.js tote + FomoScan client | Off-chain: one board print, server signer. Not in the program. |
+| — | Keeper + Next.js tote + FomoScan client | Off-chain: FOMO `window=all` hourly for every pot, pump.fun weekly daily. Pump pots judge a cumulative series (the weekly print resets); first-print ignores pre-open and stale leftover files. Server signer. Not in the program. |
 
 Settlement helpers live in [`programs/fomo-pnl/src/settle.rs`](../programs/fomo-pnl/src/settle.rs) (new file vs the template).
 

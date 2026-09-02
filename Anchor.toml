@@ -6,11 +6,11 @@ package_manager = "pnpm"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-fomo_pnl = "6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e"
-
 [programs.devnet]
-fomo_pnl = "6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e"
+fomo_pnl = "HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU"
+
+[programs.localnet]
+fomo_pnl = "HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU"
 
 [registry]
 url = "https://api.apr.dev"

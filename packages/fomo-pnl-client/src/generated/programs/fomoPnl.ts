@@ -119,7 +119,7 @@ import {
 } from "../pdas";
 
 export const FOMO_PNL_PROGRAM_ADDRESS =
-  "6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e" as Address<"6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e">;
+  "HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU" as Address<"HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU">;
 
 export enum FomoPnlAccount {
   Config,
@@ -376,7 +376,7 @@ export function identifyFomoPnlInstruction(
 }
 
 export type ParsedFomoPnlInstruction<
-  TProgram extends string = "6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e",
+  TProgram extends string = "HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU",
 > =
   | ({
       instructionType: FomoPnlInstruction.AcceptRakeOwner;

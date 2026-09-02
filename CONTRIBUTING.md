@@ -16,6 +16,7 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call Fomo
 
 - On-chain pot: `programs/fomo-pnl`
 - Board client + keeper: `services/fomoscan`, `services/keeper`
+- Public-group feedback bot: `services/telegram-bot` (`pnpm --filter @fomopred/telegram-bot start`)
 
 The tote UI is not published.
 

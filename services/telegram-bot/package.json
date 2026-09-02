@@ -1,0 +1,21 @@
+{
+  "name": "@fomopred/telegram-bot",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "node --import tsx src/run.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "grammy": "^1.38.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5",
+    "vitest": "^3.2.4"
+  }
+}

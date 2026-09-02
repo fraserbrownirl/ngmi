@@ -4,7 +4,7 @@ On-chain review lives in [docs/audit/](docs/audit/). It is a Trail of Bits six-p
 
 ## Report a vulnerability
 
-Use GitHub’s private vulnerability reporting (Security advisory) on this repository. Do not open a public issue for an exploitable bug.
+Use GitHub’s private vulnerability reporting (Security advisory) on this repository. Do not open a public issue for an exploitable bug. Do not send exploits through the Telegram group feedback Menu.
 
 Include:
 

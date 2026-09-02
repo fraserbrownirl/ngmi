@@ -8,7 +8,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("6PMKc3TbVhbYPDCX73cAvFnEePKSgNy34167qeCVDP8e");
+declare_id!("HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU");
 
 #[program]
 pub mod fomo_pnl {

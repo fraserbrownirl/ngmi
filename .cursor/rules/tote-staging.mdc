@@ -1,0 +1,22 @@
+---
+description: Deploy tote UI changes to Vercel staging — that is the test target
+alwaysApply: true
+---
+
+# Tote staging (Vercel)
+
+The operator tests the tote on **https://ngmi-stage.vercel.app**, not localhost alone. After any `apps/web` change, deploy that project **before** saying the work is done. Do not wait to be asked. Leave **https://ngmi.markets** (splash / `apps/landing`) alone.
+
+`apps/web` stays gitignored. Do not add it to the public `pnpm-workspace.yaml` or commit it.
+
+## Deploy
+
+Sync into `/tmp/ngmi-stage` (keep `.vercel` and any `.env.local`). Workspace yaml in that tree **must** include `apps/web`. Then:
+
+```
+npx --yes vercel@latest deploy --prod --yes --cwd /tmp/ngmi-stage --scope frsr --logs
+```
+
+Project: `ngmi-stage` (`prj_CAYYd91QDAJvDJSwLDPWnGN5gfRb`), scope `frsr`. Root directory `apps/web`, framework `nextjs`, output directory auto. Do not point this project at `apps/landing` and do not Git-deploy the splash onto it.
+
+Return the production URL when the deploy is READY.

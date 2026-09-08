@@ -1,7 +1,9 @@
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
 const BASE = "https://api.twitterapi.io";
 const DEFAULT_USERNAME = "ngmi_cto";
-const LOGIN_WAIT_MS = 90_000;
-const LOGIN_POLL_MS = 3_000;
+const COOKIE_FILE = join(process.cwd(), "data", "twitterapi-cto.json");
 
 export type TwitterApiConfig = {
   apiKey: string;
@@ -20,7 +22,12 @@ type Envelope = {
   detail?: string;
   tweet_id?: string;
   login_cookie?: string;
-  data?: Record<string, unknown>;
+  login_cookies?: string;
+  data?: Record<string, unknown> & {
+    status_code?: number;
+    response?: { errors?: { code?: number; message?: string }[] };
+    create_tweet?: { tweet_result?: { result?: { rest_id?: string } } };
+  };
 };
 
 function trim(value: string | undefined): string | undefined {
@@ -28,37 +35,59 @@ function trim(value: string | undefined): string | undefined {
   return v || undefined;
 }
 
-function sessionCookie(env: NodeJS.ProcessEnv): string | undefined {
-  const auth = trim(env.TWITTER_CTO_AUTH_TOKEN);
-  if (!auth) return undefined;
-  const ct0 = trim(env.TWITTER_CTO_CT0);
-  return ct0 ? `ct0=${ct0}&auth_token=${auth}` : `auth_token=${auth}`;
-}
-
 export function twitterApiFromEnv(env: NodeJS.ProcessEnv = process.env): TwitterApiConfig | null {
   const apiKey = trim(env.TWITTERAPI_API_KEY);
   if (!apiKey) return null;
   const username = (trim(env.TWITTER_CTO_USERNAME) || DEFAULT_USERNAME).replace(/^@/, "");
+  const proxy = webshareProxyFromEnv(env);
   return {
     apiKey,
     username,
     email: trim(env.TWITTER_CTO_EMAIL),
     password: trim(env.TWITTER_CTO_PASSWORD),
     totpSecret: trim(env.TWITTER_CTO_TOTP_SECRET),
-    cookie: sessionCookie(env),
-    proxy: trim(env.TWITTERAPI_PROXY),
+    cookie: trim(env.TWITTER_CTO_LOGIN_COOKIE) || readStoredCookie(),
+    proxy,
   };
 }
 
-function innerStatus(json: Envelope): string {
-  const data = json.data;
-  const raw = data?.status ?? data?.account_status ?? data?.state ?? json.status;
-  return String(raw ?? "").toLowerCase();
+/** Sticky Webshare URL. Prefer `TWITTERAPI_PROXY`, else assemble from PROXY_* parts. */
+export function webshareProxyFromEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const assembled = trim(env.TWITTERAPI_PROXY);
+  if (assembled) return assembled.replace(/\/$/, "");
+  const host = trim(env.PROXY_ADDRESS) || trim(env.PROXY_HOST);
+  const port = trim(env.PROXY_PORT);
+  const user = trim(env.PROXY_USERNAME) || trim(env.PROXY_USER);
+  const pass = trim(env.PROXY_PASSWORD);
+  if (host && port && user && pass) return `http://${user}:${pass}@${host}:${port}`;
+  return undefined;
 }
 
-export function isTwitterApiActive(json: unknown): boolean {
+function readStoredCookie(): string | undefined {
+  try {
+    const raw = JSON.parse(readFileSync(COOKIE_FILE, "utf8")) as { login_cookies?: string };
+    return trim(raw.login_cookies);
+  } catch {
+    return undefined;
+  }
+}
+
+export function storeLoginCookie(cookie: string, file = COOKIE_FILE) {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify({ login_cookies: cookie, obtainedAt: Date.now() }, null, 2));
+}
+
+function pickCookie(json: Envelope): string | undefined {
+  return trim(json.login_cookies) || trim(json.login_cookie);
+}
+
+export function twitterApiLocked(json: unknown): boolean {
   if (!json || typeof json !== "object") return false;
-  return innerStatus(json as Envelope) === "active";
+  const env = json as Envelope;
+  const errors = env.data?.response?.errors ?? [];
+  if (errors.some((e) => e.code === 326)) return true;
+  const blob = `${env.msg ?? ""} ${env.message ?? ""} ${env.detail ?? ""}`.toLowerCase();
+  return blob.includes("temporarily locked") || blob.includes("code 326");
 }
 
 export function twitterApiNeedsLogin(json: unknown, httpStatus = 200): boolean {
@@ -66,11 +95,17 @@ export function twitterApiNeedsLogin(json: unknown, httpStatus = 200): boolean {
   if (!json || typeof json !== "object") return httpStatus >= 500;
   const env = json as Envelope;
   const blob = `${env.status ?? ""} ${env.msg ?? ""} ${env.message ?? ""} ${env.detail ?? ""}`.toLowerCase();
-  return /not logged|not login|please login|inactive|no account|not found|unauthor|cookie/.test(blob);
+  return /not logged|not login|please login|inactive|expired|invalid.*cookie|login_cookies/.test(blob);
 }
 
 function errorText(json: Envelope, httpStatus: number): string {
-  return json.msg || json.message || json.detail || json.status || `twitterapi ${httpStatus}`;
+  const nested = json.data?.response?.errors?.map((e) => e.message).filter(Boolean).join("; ");
+  return nested || json.msg || json.message || json.detail || json.status || `twitterapi ${httpStatus}`;
+}
+
+function outerFailed(json: Envelope, httpStatus: number): boolean {
+  const status = String(json.status ?? "").toLowerCase();
+  return httpStatus >= 400 || status === "error";
 }
 
 async function twitterFetch(
@@ -87,97 +122,83 @@ async function twitterFetch(
   return { httpStatus: res.status, json };
 }
 
-async function accountDetail(cfg: TwitterApiConfig): Promise<{ httpStatus: number; json: Envelope }> {
-  const params = new URLSearchParams({ user_name: cfg.username });
-  return twitterFetch(cfg, `/twitter/get_my_x_account_detail_v3?${params}`);
-}
+let loginGate: Promise<string> | null = null;
 
-let loginGate: Promise<void> | null = null;
-
-async function loginV3(cfg: TwitterApiConfig): Promise<void> {
-  if (!cfg.proxy) {
-    throw new Error("TWITTERAPI_PROXY required for first @ngmi_cto login");
-  }
-  if (!cfg.cookie && (!cfg.email || !cfg.password)) {
-    throw new Error("TWITTER_CTO_EMAIL and TWITTER_CTO_PASSWORD required when no auth cookie");
+export async function loginCto(cfg: TwitterApiConfig): Promise<string> {
+  if (!cfg.proxy) throw new Error("TWITTERAPI_PROXY required — sticky Webshare URL for @ngmi_cto");
+  if (!cfg.email || !cfg.password) {
+    throw new Error("TWITTER_CTO_EMAIL and TWITTER_CTO_PASSWORD required for v2 login");
   }
   const body: Record<string, string> = {
     user_name: cfg.username,
+    email: cfg.email,
+    password: cfg.password,
     proxy: cfg.proxy,
   };
-  if (cfg.cookie) body.cookie = cfg.cookie;
-  else {
-    if (cfg.email) body.email = cfg.email;
-    if (cfg.password) body.password = cfg.password;
-  }
-  if (cfg.totpSecret) body.totp_code = cfg.totpSecret;
-  const { httpStatus, json } = await twitterFetch(cfg, "/twitter/user_login_v3", {
+  if (cfg.totpSecret) body.totp_secret = cfg.totpSecret;
+  const { httpStatus, json } = await twitterFetch(cfg, "/twitter/user_login_v2", {
     method: "POST",
     body: JSON.stringify(body),
   });
-  const status = String(json.status ?? "").toLowerCase();
-  if (httpStatus >= 400 || status === "error") {
+  if (twitterApiLocked(json)) throw new Error(`login locked: ${errorText(json, httpStatus)}`);
+  if (outerFailed(json, httpStatus)) {
     throw new Error(`login ${httpStatus}: ${errorText(json, httpStatus)}`);
   }
+  const cookie = pickCookie(json);
+  if (!cookie) throw new Error(`login missing login_cookies: ${errorText(json, httpStatus)}`);
+  storeLoginCookie(cookie);
+  cfg.cookie = cookie;
+  return cookie;
 }
 
-function sleep(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitUntilActive(cfg: TwitterApiConfig, now = Date.now): Promise<void> {
-  const deadline = now() + LOGIN_WAIT_MS;
-  while (now() < deadline) {
-    const { json } = await accountDetail(cfg);
-    if (isTwitterApiActive(json)) return;
-    await sleep(LOGIN_POLL_MS);
-  }
-  throw new Error("twitterapi login did not become Active");
-}
-
-export async function ensureTwitterApiLogin(cfg: TwitterApiConfig): Promise<void> {
-  const { json } = await accountDetail(cfg);
-  if (isTwitterApiActive(json)) return;
+async function ensureCookie(cfg: TwitterApiConfig): Promise<string> {
+  if (cfg.cookie) return cfg.cookie;
   if (!loginGate) {
-    loginGate = (async () => {
-      await loginV3(cfg);
-      await waitUntilActive(cfg);
-    })().finally(() => {
+    loginGate = loginCto(cfg).finally(() => {
       loginGate = null;
     });
   }
-  await loginGate;
+  return loginGate;
 }
 
-async function sendTweetV3(cfg: TwitterApiConfig, text: string): Promise<{
-  httpStatus: number;
-  json: Envelope;
-}> {
-  return twitterFetch(cfg, "/twitter/send_tweet_v3", {
+function tweetIdFrom(json: Envelope): string | undefined {
+  const nested = json.data?.create_tweet?.tweet_result?.result?.rest_id;
+  if (typeof nested === "string" && nested) return nested;
+  if (json.tweet_id) return json.tweet_id;
+  const dataId = json.data && typeof json.data.tweet_id === "string" ? json.data.tweet_id : undefined;
+  return dataId;
+}
+
+async function createTweetV2(cfg: TwitterApiConfig, cookie: string, text: string) {
+  if (!cfg.proxy) throw new Error("TWITTERAPI_PROXY required on every v2 write");
+  return twitterFetch(cfg, "/twitter/create_tweet_v2", {
     method: "POST",
-    body: JSON.stringify({ user_name: cfg.username, text: text.trim().slice(0, 280) }),
+    body: JSON.stringify({
+      login_cookies: cookie,
+      proxy: cfg.proxy,
+      tweet_text: text.trim().slice(0, 280),
+    }),
   });
 }
 
-function queuedId(json: Envelope): string {
-  const data = json.data;
-  const fromData = data && typeof data.tweet_id === "string" ? data.tweet_id : undefined;
-  return json.tweet_id || fromData || "queued";
-}
-
-/** Post as the CTO account. Logs in once if TwitterAPI.io has no Active session. */
+/** Post as @ngmi_cto via twitterapi.io v2. Same sticky proxy on login and write. */
 export async function postCtoTweet(cfg: TwitterApiConfig, text: string): Promise<string> {
-  const first = await sendTweetV3(cfg, text);
-  const firstStatus = String(first.json.status ?? "").toLowerCase();
-  if (first.httpStatus < 400 && firstStatus !== "error") return queuedId(first.json);
-  if (!twitterApiNeedsLogin(first.json, first.httpStatus) && first.httpStatus < 500) {
-    throw new Error(`post ${first.httpStatus}: ${errorText(first.json, first.httpStatus)}`);
+  let cookie = await ensureCookie(cfg);
+  let res = await createTweetV2(cfg, cookie, text);
+  if (twitterApiLocked(res.json)) {
+    throw new Error(`post locked: ${errorText(res.json, res.httpStatus)}`);
   }
-  await ensureTwitterApiLogin(cfg);
-  const retry = await sendTweetV3(cfg, text);
-  const retryStatus = String(retry.json.status ?? "").toLowerCase();
-  if (retry.httpStatus >= 400 || retryStatus === "error") {
-    throw new Error(`post ${retry.httpStatus}: ${errorText(retry.json, retry.httpStatus)}`);
+  if (outerFailed(res.json, res.httpStatus) || twitterApiNeedsLogin(res.json, res.httpStatus)) {
+    cookie = await loginCto(cfg);
+    res = await createTweetV2(cfg, cookie, text);
   }
-  return queuedId(retry.json);
+  if (twitterApiLocked(res.json)) {
+    throw new Error(`post locked: ${errorText(res.json, res.httpStatus)}`);
+  }
+  if (outerFailed(res.json, res.httpStatus)) {
+    throw new Error(`post ${res.httpStatus}: ${errorText(res.json, res.httpStatus)}`);
+  }
+  const id = tweetIdFrom(res.json);
+  if (!id) throw new Error(`post missing tweet_id: ${errorText(res.json, res.httpStatus)}`);
+  return id;
 }

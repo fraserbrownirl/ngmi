@@ -107,7 +107,7 @@ describe("planTwitterApiTick", () => {
     });
     expect(planTwitterApiTick({ lastSeenId: EMPTY_SEED_ID }, tweets)).toEqual({
       kind: "send",
-      tweets,
+      tweets: [{ id: "20", text: "b" }],
     });
   });
 });

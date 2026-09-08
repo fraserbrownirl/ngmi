@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  isTwitterApiActive,
   postCtoTweet,
   twitterApiFromEnv,
+  twitterApiLocked,
   twitterApiNeedsLogin,
+  webshareProxyFromEnv,
 } from "../src/twitterapi.ts";
 
 const CFG = {
@@ -21,25 +22,22 @@ describe("twitterApiFromEnv", () => {
     expect(twitterApiFromEnv({ TWITTER_CTO_USERNAME: "ngmi_cto" })).toBeNull();
   });
 
-  it("defaults the CTO handle and reads the session cookie", () => {
-    const cfg = twitterApiFromEnv({
-      TWITTERAPI_API_KEY: " k ",
-      TWITTER_CTO_AUTH_TOKEN: "tok",
-      TWITTER_CTO_CT0: "csrf",
-    });
-    expect(cfg).toMatchObject({
-      apiKey: "k",
-      username: "ngmi_cto",
-      cookie: "ct0=csrf&auth_token=tok",
-    });
+  it("assembles the sticky Webshare URL from parts", () => {
+    expect(
+      webshareProxyFromEnv({
+        PROXY_ADDRESS: "191.96.254.138",
+        PROXY_PORT: "6185",
+        PROXY_USERNAME: "krmundnw",
+        PROXY_PASSWORD: "secret",
+      }),
+    ).toBe("http://krmundnw:secret@191.96.254.138:6185");
   });
 });
 
-describe("isTwitterApiActive", () => {
-  it("reads the inner account status", () => {
-    expect(isTwitterApiActive({ status: "success", data: { status: "Active" } })).toBe(true);
-    expect(isTwitterApiActive({ status: "success", data: { status: "Pending" } })).toBe(false);
-    expect(isTwitterApiActive({ status: "error" })).toBe(false);
+describe("twitterApiLocked", () => {
+  it("treats X 326 as a lock", () => {
+    expect(twitterApiLocked({ data: { response: { errors: [{ code: 326 }] } } })).toBe(true);
+    expect(twitterApiLocked({ status: "success" })).toBe(false);
   });
 });
 
@@ -63,34 +61,26 @@ describe("postCtoTweet", () => {
     fetchMock.mockReset();
   });
 
-  it("posts v3 with username after a live session", async () => {
+  it("posts v2 with login_cookies and the same proxy", async () => {
     fetchMock.mockResolvedValue({
       status: 200,
       json: async () => ({ status: "success", tweet_id: "99" }),
     });
-    await expect(postCtoTweet(CFG, "hello")).resolves.toBe("99");
-    expect(fetchMock.mock.calls[0][0]).toBe("https://api.twitterapi.io/twitter/send_tweet_v3");
+    await expect(postCtoTweet({ ...CFG, cookie: "cook" }, "hello")).resolves.toBe("99");
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.twitterapi.io/twitter/create_tweet_v2");
     const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
-    expect(body).toEqual({ user_name: "ngmi_cto", text: "hello" });
+    expect(body).toEqual({
+      login_cookies: "cook",
+      proxy: CFG.proxy,
+      tweet_text: "hello",
+    });
   });
 
-  it("logs in once when the session is missing, then retries", async () => {
+  it("logs in via v2 when the cookie is missing, then posts", async () => {
     fetchMock
       .mockResolvedValueOnce({
-        status: 400,
-        json: async () => ({ status: "error", msg: "please login first" }),
-      })
-      .mockResolvedValueOnce({
         status: 200,
-        json: async () => ({ status: "success", data: { status: "Inactive" } }),
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        json: async () => ({ status: "success" }),
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        json: async () => ({ status: "success", data: { status: "Active" } }),
+        json: async () => ({ status: "success", login_cookies: "newcook" }),
       })
       .mockResolvedValueOnce({
         status: 200,
@@ -98,7 +88,14 @@ describe("postCtoTweet", () => {
       });
     await expect(postCtoTweet(CFG, "hello")).resolves.toBe("100");
     const urls = fetchMock.mock.calls.map((c) => String(c[0]));
-    expect(urls).toContain("https://api.twitterapi.io/twitter/user_login_v3");
-    expect(urls.filter((u) => u.includes("send_tweet_v3"))).toHaveLength(2);
+    expect(urls[0]).toBe("https://api.twitterapi.io/twitter/user_login_v2");
+    const login = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+    expect(login).toMatchObject({
+      user_name: "ngmi_cto",
+      email: "a@b.c",
+      totp_secret: "SECRET",
+      proxy: CFG.proxy,
+    });
+    expect(urls[1]).toBe("https://api.twitterapi.io/twitter/create_tweet_v2");
   });
 });

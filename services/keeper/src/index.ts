@@ -19,11 +19,13 @@ export {
   type BetSide,
 } from "./tweet";
 export {
-  ensureTwitterApiLogin,
-  isTwitterApiActive,
+  loginCto,
   postCtoTweet,
+  storeLoginCookie,
   twitterApiFromEnv,
+  twitterApiLocked,
   twitterApiNeedsLogin,
+  webshareProxyFromEnv,
   type TwitterApiConfig,
 } from "./twitterapi";
 export {

@@ -26,7 +26,7 @@ export const TOPICS: Record<TopicId, Topic> = {
     button: "Testnet product UX feedback (experience)",
     label: "Testnet UX (experience)",
     prompt:
-      "Reply with a screenshot or screen recording of the experience, plus a short caption.",
+      "Reply with a screenshot or screen recording of the experience, together with as detailed a description as possible.",
     needsMedia: true,
   },
   ui: {
@@ -34,7 +34,7 @@ export const TOPICS: Record<TopicId, Topic> = {
     button: "Testnet product UI feedback (look and feel)",
     label: "Testnet UI (look and feel)",
     prompt:
-      "Reply with a screenshot or screen recording of the look and feel, plus a short caption.",
+      "Reply with a screenshot or screen recording of the look and feel, together with as detailed a description as possible.",
     needsMedia: true,
   },
   other: {

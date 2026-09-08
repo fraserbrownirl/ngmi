@@ -84,6 +84,9 @@ export function planTwitterApiTick(state: ShareState, tweets: Tweet[]): TickPlan
   }
   const newer = originals.filter((t) => tweetIdGreater(t.id, state.lastSeenId as string));
   if (newer.length === 0) return { kind: "idle" };
+  if (state.lastSeenId === EMPTY_SEED_ID) {
+    return { kind: "send", tweets: [newer[newer.length - 1]] };
+  }
   return { kind: "send", tweets: newer };
 }
 
@@ -136,6 +139,18 @@ export async function fetchLastOriginals(
   return originalsFromTwitterApi(extractLastTweets(json));
 }
 
+/** Poll by handle. `user/info` lags on renames; `last_tweets?userName=` does not. */
+export async function fetchLastOriginalsByHandle(
+  username: string,
+  apiKey: string,
+): Promise<Tweet[]> {
+  const json = await twitterApiGet("/twitter/user/last_tweets", apiKey, {
+    userName: username.replace(/^@/, ""),
+    includeReplies: "false",
+  });
+  return originalsFromTwitterApi(extractLastTweets(json));
+}
+
 export type StartTwitterApiShareOpts = {
   bot: Bot;
   apiKey: string;
@@ -158,19 +173,9 @@ export function startTwitterApiShare(
     log: opts.log,
     logLabel: `cto share @${opts.username.replace(/^@/, "")}`,
     plan: planTwitterApiTick,
-    haltPattern:
-      /Could not find user|401|402|403|Unauthorized|Payment Required/i,
-    fetchTick: async (state) => {
-      const userId = await resolveTwitterApiUserId(
-        opts.username,
-        opts.apiKey,
-        state.userId,
-      );
-      const tweets = await fetchLastOriginals(userId, opts.apiKey);
-      return {
-        tweets,
-        patch: state.userId === userId ? undefined : { userId },
-      };
-    },
+    haltPattern: /401|402|403|Unauthorized|Payment Required/i,
+    fetchTick: async () => ({
+      tweets: await fetchLastOriginalsByHandle(opts.username, opts.apiKey),
+    }),
   });
 }

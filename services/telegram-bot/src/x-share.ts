@@ -60,11 +60,20 @@ export function originalsOldestFirst(tweets: Tweet[]): Tweet[] {
   return tweets.filter(isOriginalTweet).sort((a, b) => a.id.localeCompare(b.id));
 }
 
+export function stripTweetShortlinks(text: string): string {
+  return text
+    .replace(/https?:\/\/t\.co\/\S+/gi, "")
+    .replace(/\s*solana:[1-9A-HJ-NP-Za-km-z]{32,44}/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function formatXPost(username: string, tweet: Tweet): string {
-  const body = escapeHtml((tweet.text ?? "").trim());
+  const body = escapeHtml(stripTweetShortlinks(tweet.text ?? ""));
   const handle = escapeHtml(username.replace(/^@/, ""));
   const link = `https://x.com/${handle}/status/${tweet.id}`;
-  return `New post from @${handle}:\n\n${body}\n\n${link}`;
+  if (!body) return `New post! You know what to do ) 🚀🚀\n\n${link}`;
+  return `New post! You know what to do ) 🚀🚀\n\n${body}\n\n${link}`;
 }
 
 export type TickPlan =

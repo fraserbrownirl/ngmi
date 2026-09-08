@@ -179,10 +179,17 @@ export type ResolveMarketAsyncInput<
   market?: Address<TAccountMarket>;
   marketVault?: Address<TAccountMarketVault>;
   tokenMint: Address<TAccountTokenMint>;
-  /** may be the same account as `creator_token` when founder opened the pot. */
+  /**
+   * when the founder slice is non-zero; an invalid account sends that slice
+   * to the burn treasury instead of blocking resolution.
+   */
   founderToken: Address<TAccountFounderToken>;
   burnToken: Address<TAccountBurnToken>;
   agentToken: Address<TAccountAgentToken>;
+  /**
+   * the creator slice is non-zero; an invalid account sends that slice to
+   * the burn treasury instead of blocking resolution.
+   */
   creatorToken: Address<TAccountCreatorToken>;
   tokenProgram?: Address<TAccountTokenProgram>;
   marketId: ResolveMarketInstructionDataArgs["marketId"];
@@ -335,10 +342,17 @@ export type ResolveMarketInput<
   market: Address<TAccountMarket>;
   marketVault: Address<TAccountMarketVault>;
   tokenMint: Address<TAccountTokenMint>;
-  /** may be the same account as `creator_token` when founder opened the pot. */
+  /**
+   * when the founder slice is non-zero; an invalid account sends that slice
+   * to the burn treasury instead of blocking resolution.
+   */
   founderToken: Address<TAccountFounderToken>;
   burnToken: Address<TAccountBurnToken>;
   agentToken: Address<TAccountAgentToken>;
+  /**
+   * the creator slice is non-zero; an invalid account sends that slice to
+   * the burn treasury instead of blocking resolution.
+   */
   creatorToken: Address<TAccountCreatorToken>;
   tokenProgram?: Address<TAccountTokenProgram>;
   marketId: ResolveMarketInstructionDataArgs["marketId"];
@@ -466,10 +480,17 @@ export type ParsedResolveMarketInstruction<
     market: TAccountMetas[3];
     marketVault: TAccountMetas[4];
     tokenMint: TAccountMetas[5];
-    /** may be the same account as `creator_token` when founder opened the pot. */
+    /**
+     * when the founder slice is non-zero; an invalid account sends that slice
+     * to the burn treasury instead of blocking resolution.
+     */
     founderToken: TAccountMetas[6];
     burnToken: TAccountMetas[7];
     agentToken: TAccountMetas[8];
+    /**
+     * the creator slice is non-zero; an invalid account sends that slice to
+     * the burn treasury instead of blocking resolution.
+     */
     creatorToken: TAccountMetas[9];
     tokenProgram: TAccountMetas[10];
   };

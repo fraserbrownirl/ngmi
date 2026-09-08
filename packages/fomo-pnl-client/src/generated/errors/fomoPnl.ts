@@ -62,15 +62,21 @@ export const FOMO_PNL_ERROR__OVERFLOW = 0x1785; // 6021
 export const FOMO_PNL_ERROR__ZERO_AMOUNT = 0x1786; // 6022
 /** InvalidSettleKind: Invalid settle kind */
 export const FOMO_PNL_ERROR__INVALID_SETTLE_KIND = 0x1787; // 6023
+/** InvalidOwner: Invalid position owner */
+export const FOMO_PNL_ERROR__INVALID_OWNER = 0x1788; // 6024
+/** InvalidCapturedAt: Captured timestamp outside market window */
+export const FOMO_PNL_ERROR__INVALID_CAPTURED_AT = 0x1789; // 6025
 
 export type FomoPnlError =
   | typeof FOMO_PNL_ERROR__ALREADY_ABOVE_THRESHOLD
   | typeof FOMO_PNL_ERROR__ALREADY_CLAIMED
   | typeof FOMO_PNL_ERROR__INVALID_ADMIN
+  | typeof FOMO_PNL_ERROR__INVALID_CAPTURED_AT
   | typeof FOMO_PNL_ERROR__INVALID_FEE
   | typeof FOMO_PNL_ERROR__INVALID_FOMO_USER_ID
   | typeof FOMO_PNL_ERROR__INVALID_FOUNDER
   | typeof FOMO_PNL_ERROR__INVALID_OUTCOME
+  | typeof FOMO_PNL_ERROR__INVALID_OWNER
   | typeof FOMO_PNL_ERROR__INVALID_RAKE_OWNER
   | typeof FOMO_PNL_ERROR__INVALID_RESOLUTION_TIME
   | typeof FOMO_PNL_ERROR__INVALID_RESOLVER
@@ -95,10 +101,12 @@ if (process.env["NODE_ENV"] !== "production") {
     [FOMO_PNL_ERROR__ALREADY_ABOVE_THRESHOLD]: `Start PnL already meets or exceeds threshold`,
     [FOMO_PNL_ERROR__ALREADY_CLAIMED]: `Already claimed`,
     [FOMO_PNL_ERROR__INVALID_ADMIN]: `Invalid admin`,
+    [FOMO_PNL_ERROR__INVALID_CAPTURED_AT]: `Captured timestamp outside market window`,
     [FOMO_PNL_ERROR__INVALID_FEE]: `Invalid fee`,
     [FOMO_PNL_ERROR__INVALID_FOMO_USER_ID]: `Invalid FOMO user id`,
     [FOMO_PNL_ERROR__INVALID_FOUNDER]: `Invalid founder`,
     [FOMO_PNL_ERROR__INVALID_OUTCOME]: `Invalid outcome`,
+    [FOMO_PNL_ERROR__INVALID_OWNER]: `Invalid position owner`,
     [FOMO_PNL_ERROR__INVALID_RAKE_OWNER]: `Invalid rake owner`,
     [FOMO_PNL_ERROR__INVALID_RESOLUTION_TIME]: `Invalid resolution time`,
     [FOMO_PNL_ERROR__INVALID_RESOLVER]: `Invalid resolver`,

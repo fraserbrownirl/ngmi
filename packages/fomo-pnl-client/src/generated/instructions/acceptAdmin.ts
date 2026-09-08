@@ -10,8 +10,6 @@ import {
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
-  getAddressDecoder,
-  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
@@ -40,29 +38,29 @@ import {
 import { findConfigPda } from "../pdas";
 import { FOMO_PNL_PROGRAM_ADDRESS } from "../programs";
 
-export const UPDATE_CONFIG_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
-  29, 158, 252, 191, 10, 83, 219, 99,
+export const ACCEPT_ADMIN_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+  112, 42, 45, 90, 116, 181, 13, 170,
 ]);
 
-export function getUpdateConfigDiscriminatorBytes(): ReadonlyUint8Array {
+export function getAcceptAdminDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    UPDATE_CONFIG_DISCRIMINATOR,
+    ACCEPT_ADMIN_DISCRIMINATOR,
   );
 }
 
-export type UpdateConfigInstruction<
+export type AcceptAdminInstruction<
   TProgram extends string = typeof FOMO_PNL_PROGRAM_ADDRESS,
-  TAccountAdmin extends string | AccountMeta<string> = string,
+  TAccountPending extends string | AccountMeta<string> = string,
   TAccountConfig extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountAdmin extends string
-        ? ReadonlySignerAccount<TAccountAdmin> &
-            AccountSignerMeta<TAccountAdmin>
-        : TAccountAdmin,
+      TAccountPending extends string
+        ? ReadonlySignerAccount<TAccountPending> &
+            AccountSignerMeta<TAccountPending>
+        : TAccountPending,
       TAccountConfig extends string
         ? WritableAccount<TAccountConfig>
         : TAccountConfig,
@@ -70,74 +68,63 @@ export type UpdateConfigInstruction<
     ]
   >;
 
-export type UpdateConfigInstructionData = {
-  discriminator: ReadonlyUint8Array;
-  feeRecipient: Address;
-};
+export type AcceptAdminInstructionData = { discriminator: ReadonlyUint8Array };
 
-export type UpdateConfigInstructionDataArgs = { feeRecipient: Address };
+export type AcceptAdminInstructionDataArgs = {};
 
-export function getUpdateConfigInstructionDataEncoder(): FixedSizeEncoder<UpdateConfigInstructionDataArgs> {
+export function getAcceptAdminInstructionDataEncoder(): FixedSizeEncoder<AcceptAdminInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([
-      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
-      ["feeRecipient", getAddressEncoder()],
-    ]),
-    (value) => ({ ...value, discriminator: UPDATE_CONFIG_DISCRIMINATOR }),
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
+    (value) => ({ ...value, discriminator: ACCEPT_ADMIN_DISCRIMINATOR }),
   );
 }
 
-export function getUpdateConfigInstructionDataDecoder(): FixedSizeDecoder<UpdateConfigInstructionData> {
+export function getAcceptAdminInstructionDataDecoder(): FixedSizeDecoder<AcceptAdminInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
-    ["feeRecipient", getAddressDecoder()],
   ]);
 }
 
-export function getUpdateConfigInstructionDataCodec(): FixedSizeCodec<
-  UpdateConfigInstructionDataArgs,
-  UpdateConfigInstructionData
+export function getAcceptAdminInstructionDataCodec(): FixedSizeCodec<
+  AcceptAdminInstructionDataArgs,
+  AcceptAdminInstructionData
 > {
   return combineCodec(
-    getUpdateConfigInstructionDataEncoder(),
-    getUpdateConfigInstructionDataDecoder(),
+    getAcceptAdminInstructionDataEncoder(),
+    getAcceptAdminInstructionDataDecoder(),
   );
 }
 
-export type UpdateConfigAsyncInput<
-  TAccountAdmin extends string = string,
+export type AcceptAdminAsyncInput<
+  TAccountPending extends string = string,
   TAccountConfig extends string = string,
 > = {
-  admin: TransactionSigner<TAccountAdmin>;
+  pending: TransactionSigner<TAccountPending>;
   config?: Address<TAccountConfig>;
-  feeRecipient: UpdateConfigInstructionDataArgs["feeRecipient"];
 };
 
-export async function getUpdateConfigInstructionAsync<
-  TAccountAdmin extends string,
+export async function getAcceptAdminInstructionAsync<
+  TAccountPending extends string,
   TAccountConfig extends string,
   TProgramAddress extends Address = typeof FOMO_PNL_PROGRAM_ADDRESS,
 >(
-  input: UpdateConfigAsyncInput<TAccountAdmin, TAccountConfig>,
+  input: AcceptAdminAsyncInput<TAccountPending, TAccountConfig>,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  UpdateConfigInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>
+  AcceptAdminInstruction<TProgramAddress, TAccountPending, TAccountConfig>
 > {
   // Program address.
   const programAddress = config?.programAddress ?? FOMO_PNL_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
-    admin: { value: input.admin ?? null, isWritable: false },
+    pending: { value: input.pending ?? null, isWritable: false },
     config: { value: input.config ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedInstructionAccount
   >;
-
-  // Original args.
-  const args = { ...input };
 
   // Resolve default values.
   if (!accounts.config.value) {
@@ -147,39 +134,40 @@ export async function getUpdateConfigInstructionAsync<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta("admin", accounts.admin),
+      getAccountMeta("pending", accounts.pending),
       getAccountMeta("config", accounts.config),
     ],
-    data: getUpdateConfigInstructionDataEncoder().encode(
-      args as UpdateConfigInstructionDataArgs,
-    ),
+    data: getAcceptAdminInstructionDataEncoder().encode({}),
     programAddress,
-  } as UpdateConfigInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>);
+  } as AcceptAdminInstruction<
+    TProgramAddress,
+    TAccountPending,
+    TAccountConfig
+  >);
 }
 
-export type UpdateConfigInput<
-  TAccountAdmin extends string = string,
+export type AcceptAdminInput<
+  TAccountPending extends string = string,
   TAccountConfig extends string = string,
 > = {
-  admin: TransactionSigner<TAccountAdmin>;
+  pending: TransactionSigner<TAccountPending>;
   config: Address<TAccountConfig>;
-  feeRecipient: UpdateConfigInstructionDataArgs["feeRecipient"];
 };
 
-export function getUpdateConfigInstruction<
-  TAccountAdmin extends string,
+export function getAcceptAdminInstruction<
+  TAccountPending extends string,
   TAccountConfig extends string,
   TProgramAddress extends Address = typeof FOMO_PNL_PROGRAM_ADDRESS,
 >(
-  input: UpdateConfigInput<TAccountAdmin, TAccountConfig>,
+  input: AcceptAdminInput<TAccountPending, TAccountConfig>,
   config?: { programAddress?: TProgramAddress },
-): UpdateConfigInstruction<TProgramAddress, TAccountAdmin, TAccountConfig> {
+): AcceptAdminInstruction<TProgramAddress, TAccountPending, TAccountConfig> {
   // Program address.
   const programAddress = config?.programAddress ?? FOMO_PNL_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
-    admin: { value: input.admin ?? null, isWritable: false },
+    pending: { value: input.pending ?? null, isWritable: false },
     config: { value: input.config ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
@@ -187,42 +175,41 @@ export function getUpdateConfigInstruction<
     ResolvedInstructionAccount
   >;
 
-  // Original args.
-  const args = { ...input };
-
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta("admin", accounts.admin),
+      getAccountMeta("pending", accounts.pending),
       getAccountMeta("config", accounts.config),
     ],
-    data: getUpdateConfigInstructionDataEncoder().encode(
-      args as UpdateConfigInstructionDataArgs,
-    ),
+    data: getAcceptAdminInstructionDataEncoder().encode({}),
     programAddress,
-  } as UpdateConfigInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>);
+  } as AcceptAdminInstruction<
+    TProgramAddress,
+    TAccountPending,
+    TAccountConfig
+  >);
 }
 
-export type ParsedUpdateConfigInstruction<
+export type ParsedAcceptAdminInstruction<
   TProgram extends string = typeof FOMO_PNL_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    admin: TAccountMetas[0];
+    pending: TAccountMetas[0];
     config: TAccountMetas[1];
   };
-  data: UpdateConfigInstructionData;
+  data: AcceptAdminInstructionData;
 };
 
-export function parseUpdateConfigInstruction<
+export function parseAcceptAdminInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedUpdateConfigInstruction<TProgram, TAccountMetas> {
+): ParsedAcceptAdminInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
@@ -240,7 +227,7 @@ export function parseUpdateConfigInstruction<
   };
   return {
     programAddress: instruction.programAddress,
-    accounts: { admin: getNextAccount(), config: getNextAccount() },
-    data: getUpdateConfigInstructionDataDecoder().decode(instruction.data),
+    accounts: { pending: getNextAccount(), config: getNextAccount() },
+    data: getAcceptAdminInstructionDataDecoder().decode(instruction.data),
   };
 }

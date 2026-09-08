@@ -48,6 +48,7 @@ import {
   type UserPositionArgs,
 } from "../accounts";
 import {
+  getAcceptAdminInstructionAsync,
   getAcceptRakeOwnerInstructionAsync,
   getCancelMarketInstructionAsync,
   getClaimWinningsInstructionAsync,
@@ -60,9 +61,11 @@ import {
   getSetFounderInstructionAsync,
   getSetRakeInstructionAsync,
   getSetResolverInstructionAsync,
+  getTransferAdminInstructionAsync,
   getTransferRakeOwnerInstructionAsync,
   getUnpauseInstructionAsync,
   getUpdateConfigInstructionAsync,
+  parseAcceptAdminInstruction,
   parseAcceptRakeOwnerInstruction,
   parseCancelMarketInstruction,
   parseClaimWinningsInstruction,
@@ -75,15 +78,18 @@ import {
   parseSetFounderInstruction,
   parseSetRakeInstruction,
   parseSetResolverInstruction,
+  parseTransferAdminInstruction,
   parseTransferRakeOwnerInstruction,
   parseUnpauseInstruction,
   parseUpdateConfigInstruction,
+  type AcceptAdminAsyncInput,
   type AcceptRakeOwnerAsyncInput,
   type CancelMarketAsyncInput,
   type ClaimWinningsAsyncInput,
   type CreateMarketAsyncInput,
   type InitializeAsyncInput,
   type InitRakeAsyncInput,
+  type ParsedAcceptAdminInstruction,
   type ParsedAcceptRakeOwnerInstruction,
   type ParsedCancelMarketInstruction,
   type ParsedClaimWinningsInstruction,
@@ -96,6 +102,7 @@ import {
   type ParsedSetFounderInstruction,
   type ParsedSetRakeInstruction,
   type ParsedSetResolverInstruction,
+  type ParsedTransferAdminInstruction,
   type ParsedTransferRakeOwnerInstruction,
   type ParsedUnpauseInstruction,
   type ParsedUpdateConfigInstruction,
@@ -105,6 +112,7 @@ import {
   type SetFounderAsyncInput,
   type SetRakeAsyncInput,
   type SetResolverAsyncInput,
+  type TransferAdminAsyncInput,
   type TransferRakeOwnerAsyncInput,
   type UnpauseAsyncInput,
   type UpdateConfigAsyncInput,
@@ -119,7 +127,7 @@ import {
 } from "../pdas";
 
 export const FOMO_PNL_PROGRAM_ADDRESS =
-  "pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j" as Address<"pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j">;
+  "CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM" as Address<"CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM">;
 
 export enum FomoPnlAccount {
   Config,
@@ -183,6 +191,7 @@ export function identifyFomoPnlAccount(
 }
 
 export enum FomoPnlInstruction {
+  AcceptAdmin,
   AcceptRakeOwner,
   CancelMarket,
   ClaimWinnings,
@@ -195,6 +204,7 @@ export enum FomoPnlInstruction {
   SetFounder,
   SetRake,
   SetResolver,
+  TransferAdmin,
   TransferRakeOwner,
   Unpause,
   UpdateConfig,
@@ -204,6 +214,17 @@ export function identifyFomoPnlInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): FomoPnlInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([112, 42, 45, 90, 116, 181, 13, 170]),
+      ),
+      0,
+    )
+  ) {
+    return FomoPnlInstruction.AcceptAdmin;
+  }
   if (
     containsBytes(
       data,
@@ -340,6 +361,17 @@ export function identifyFomoPnlInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([42, 242, 66, 106, 228, 10, 111, 156]),
+      ),
+      0,
+    )
+  ) {
+    return FomoPnlInstruction.TransferAdmin;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([40, 19, 221, 34, 163, 205, 7, 160]),
       ),
       0,
@@ -376,8 +408,11 @@ export function identifyFomoPnlInstruction(
 }
 
 export type ParsedFomoPnlInstruction<
-  TProgram extends string = "pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j",
+  TProgram extends string = "CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM",
 > =
+  | ({
+      instructionType: FomoPnlInstruction.AcceptAdmin;
+    } & ParsedAcceptAdminInstruction<TProgram>)
   | ({
       instructionType: FomoPnlInstruction.AcceptRakeOwner;
     } & ParsedAcceptRakeOwnerInstruction<TProgram>)
@@ -415,6 +450,9 @@ export type ParsedFomoPnlInstruction<
       instructionType: FomoPnlInstruction.SetResolver;
     } & ParsedSetResolverInstruction<TProgram>)
   | ({
+      instructionType: FomoPnlInstruction.TransferAdmin;
+    } & ParsedTransferAdminInstruction<TProgram>)
+  | ({
       instructionType: FomoPnlInstruction.TransferRakeOwner;
     } & ParsedTransferRakeOwnerInstruction<TProgram>)
   | ({
@@ -429,6 +467,13 @@ export function parseFomoPnlInstruction<TProgram extends string>(
 ): ParsedFomoPnlInstruction<TProgram> {
   const instructionType = identifyFomoPnlInstruction(instruction);
   switch (instructionType) {
+    case FomoPnlInstruction.AcceptAdmin: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FomoPnlInstruction.AcceptAdmin,
+        ...parseAcceptAdminInstruction(instruction),
+      };
+    }
     case FomoPnlInstruction.AcceptRakeOwner: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -513,6 +558,13 @@ export function parseFomoPnlInstruction<TProgram extends string>(
         ...parseSetResolverInstruction(instruction),
       };
     }
+    case FomoPnlInstruction.TransferAdmin: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FomoPnlInstruction.TransferAdmin,
+        ...parseTransferAdminInstruction(instruction),
+      };
+    }
     case FomoPnlInstruction.TransferRakeOwner: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -562,6 +614,10 @@ export type FomoPnlPluginAccounts = {
 };
 
 export type FomoPnlPluginInstructions = {
+  acceptAdmin: (
+    input: AcceptAdminAsyncInput,
+  ) => ReturnType<typeof getAcceptAdminInstructionAsync> &
+    SelfPlanAndSendFunctions;
   acceptRakeOwner: (
     input: AcceptRakeOwnerAsyncInput,
   ) => ReturnType<typeof getAcceptRakeOwnerInstructionAsync> &
@@ -608,6 +664,10 @@ export type FomoPnlPluginInstructions = {
     input: SetResolverAsyncInput,
   ) => ReturnType<typeof getSetResolverInstructionAsync> &
     SelfPlanAndSendFunctions;
+  transferAdmin: (
+    input: TransferAdminAsyncInput,
+  ) => ReturnType<typeof getTransferAdminInstructionAsync> &
+    SelfPlanAndSendFunctions;
   transferRakeOwner: (
     input: TransferRakeOwnerAsyncInput,
   ) => ReturnType<typeof getTransferRakeOwnerInstructionAsync> &
@@ -622,8 +682,8 @@ export type FomoPnlPluginInstructions = {
 };
 
 export type FomoPnlPluginPdas = {
-  rake: typeof findRakePda;
   config: typeof findConfigPda;
+  rake: typeof findRakePda;
   market: typeof findMarketPda;
   marketVault: typeof findMarketVaultPda;
   userPosition: typeof findUserPositionPda;
@@ -649,6 +709,11 @@ export function fomoPnlProgram() {
           userPosition: addSelfFetchFunctions(client, getUserPositionCodec()),
         },
         instructions: {
+          acceptAdmin: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getAcceptAdminInstructionAsync(input),
+            ),
           acceptRakeOwner: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -709,6 +774,11 @@ export function fomoPnlProgram() {
               client,
               getSetResolverInstructionAsync(input),
             ),
+          transferAdmin: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getTransferAdminInstructionAsync(input),
+            ),
           transferRakeOwner: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -726,8 +796,8 @@ export function fomoPnlProgram() {
             ),
         },
         pdas: {
-          rake: findRakePda,
           config: findConfigPda,
+          rake: findRakePda,
           market: findMarketPda,
           marketVault: findMarketVaultPda,
           userPosition: findUserPositionPda,

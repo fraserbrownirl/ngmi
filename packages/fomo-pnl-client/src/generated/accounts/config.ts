@@ -23,8 +23,6 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU16Decoder,
-  getU16Encoder,
   getU64Decoder,
   getU64Encoder,
   getU8Decoder,
@@ -55,10 +53,11 @@ export type Config = {
   discriminator: ReadonlyUint8Array;
   admin: Address;
   resolver: Address;
+  /** Pending admin set by transfer_admin; accept_admin rotates it in. */
+  pendingAdmin: Address;
   feeRecipient: Address;
   tokenMint: Address;
   tokenDecimals: number;
-  maxFeeBps: number;
   marketCounter: bigint;
   paused: boolean;
   bump: number;
@@ -67,10 +66,11 @@ export type Config = {
 export type ConfigArgs = {
   admin: Address;
   resolver: Address;
+  /** Pending admin set by transfer_admin; accept_admin rotates it in. */
+  pendingAdmin: Address;
   feeRecipient: Address;
   tokenMint: Address;
   tokenDecimals: number;
-  maxFeeBps: number;
   marketCounter: number | bigint;
   paused: boolean;
   bump: number;
@@ -83,10 +83,10 @@ export function getConfigEncoder(): FixedSizeEncoder<ConfigArgs> {
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["admin", getAddressEncoder()],
       ["resolver", getAddressEncoder()],
+      ["pendingAdmin", getAddressEncoder()],
       ["feeRecipient", getAddressEncoder()],
       ["tokenMint", getAddressEncoder()],
       ["tokenDecimals", getU8Encoder()],
-      ["maxFeeBps", getU16Encoder()],
       ["marketCounter", getU64Encoder()],
       ["paused", getBooleanEncoder()],
       ["bump", getU8Encoder()],
@@ -101,10 +101,10 @@ export function getConfigDecoder(): FixedSizeDecoder<Config> {
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["admin", getAddressDecoder()],
     ["resolver", getAddressDecoder()],
+    ["pendingAdmin", getAddressDecoder()],
     ["feeRecipient", getAddressDecoder()],
     ["tokenMint", getAddressDecoder()],
     ["tokenDecimals", getU8Decoder()],
-    ["maxFeeBps", getU16Decoder()],
     ["marketCounter", getU64Decoder()],
     ["paused", getBooleanDecoder()],
     ["bump", getU8Decoder()],
@@ -170,5 +170,5 @@ export async function fetchAllMaybeConfig(
 }
 
 export function getConfigSize(): number {
-  return 149;
+  return 179;
 }

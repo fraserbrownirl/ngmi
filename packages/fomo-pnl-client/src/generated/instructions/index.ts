@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./acceptAdmin";
 export * from "./acceptRakeOwner";
 export * from "./cancelMarket";
 export * from "./claimWinnings";
@@ -18,6 +19,7 @@ export * from "./resolveMarket";
 export * from "./setFounder";
 export * from "./setRake";
 export * from "./setResolver";
+export * from "./transferAdmin";
 export * from "./transferRakeOwner";
 export * from "./unpause";
 export * from "./updateConfig";

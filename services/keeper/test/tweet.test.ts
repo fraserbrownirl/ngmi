@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { composeAnnounce, composeBet, fitTickers, formatMarkUsd, formatPct, handleTag, percentNeeded, shortWallet, tickerTag, TWEET_MAX } from "../src/tweet.ts";
+import { composeAnnounce, composeBet, displayName, fitTickers, formatMarkUsd, formatPct, handleTag, percentNeeded, shortWallet, tickerTag, TWEET_MAX } from "../src/tweet.ts";
 
 describe("percentNeeded", () => {
   it("is the extra percent of current PnL to hit the mark", () => {
@@ -102,16 +102,64 @@ describe("composeBet", () => {
       thresholdUsd: 50_000,
       side: "yes",
       amountUsd: 25,
-      wallet: "7xK2abcdEFGHijklMNOP",
+      wallet: "7xK2abcdEFGHijkmMNPQ",
       yesPoolUsd: 145,
       noPoolUsd: 80,
     });
-    expect(text).toBe("BET $25 YES — Ansem to $50k\n7xK2…MNOP · YES $145 / NO $80");
+    expect(text).toBe("BET $25 YES — Ansem to $50k\n7xK2…MNPQ · YES $145 / NO $80");
     expect(text.length).toBeLessThanOrEqual(TWEET_MAX);
   });
 
   it("shortens wallets", () => {
     expect(shortWallet("abcd")).toBe("abcd");
-    expect(shortWallet("7xK2abcdEFGHijklMNOP")).toBe("7xK2…MNOP");
+    expect(shortWallet("7xK2abcdEFGHijkmMNPQ")).toBe("7xK2…MNPQ");
+  });
+});
+
+describe("sanitize (F-04)", () => {
+  it("handleTag rejects anything that is not an X handle", () => {
+    expect(handleTag("ansem")).toBe("@ansem");
+    expect(handleTag("@ansem")).toBe("@ansem");
+    expect(handleTag("evil\nhttp://scam.example")).toBe("@unknown");
+    expect(handleTag("waytoolongtobeanxhandle")).toBe("@unknown");
+    expect(handleTag("with space")).toBe("@unknown");
+    expect(handleTag("")).toBe("@unknown");
+  });
+
+  it("displayName strips control chars and @ mentions", () => {
+    expect(displayName("Ansem", "ansem")).toBe("Ansem");
+    expect(displayName("Foo\n@bar", "ansem")).toBe("Foo bar");
+    expect(displayName("a".repeat(80), "ansem")).toHaveLength(50);
+    expect(displayName("\n@ ", "ansem")).toBe("ansem");
+    expect(displayName(null, "not a handle!")).toBe("this trader");
+  });
+
+  it("shortWallet strips non-base58 characters", () => {
+    expect(shortWallet("7xK2\nabcd")).toBe("7xK2abcd");
+    expect(shortWallet("0OI l")).toBe("unknown");
+  });
+
+  it("composeAnnounce cannot be broken out of by a hostile name", () => {
+    const text = composeAnnounce({
+      kind: "opened",
+      handle: "evil\nhttp://scam.example",
+      name: "@vitalik\nclick http://scam.example",
+      thresholdUsd: 100,
+      pnlUsd: 50,
+      tickers: [],
+    });
+    expect(text).not.toContain("\n");
+    expect(text).not.toContain("@vitalik");
+    expect(text).not.toContain("scam.example");
+  });
+
+  it("composeBet yes/no tweets reject a hostile handle", () => {
+    const text = composeAnnounce({
+      kind: "yes",
+      handle: "evil\nhttp://scam.example",
+      thresholdUsd: 100,
+      tickers: [],
+    });
+    expect(text).toContain("YES — @unknown printed over $100.");
   });
 });

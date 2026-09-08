@@ -45,6 +45,11 @@ describe("shared schema", () => {
     expect(usdToMicro(100.5)).toBe(100_500_000n);
   });
 
+  it("rejects non-finite usd with a clear error (F-07)", () => {
+    expect(() => usdToMicro(Number.POSITIVE_INFINITY)).toThrow(/non-finite/);
+    expect(() => usdToMicro(Number.NaN)).toThrow(/non-finite/);
+  });
+
   it("opens only on rank 1–25", () => {
     expect(canOpenByRank(1)).toBe(true);
     expect(canOpenByRank(CREATE_MAX_RANK)).toBe(true);

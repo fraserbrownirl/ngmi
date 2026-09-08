@@ -87,6 +87,18 @@ describe("normalizePumpBoard", () => {
     expect(board.period).toBe("weekly");
     expect(board.traders[0]).toMatchObject({ wallet: "Abc", username: "ann", pnlUsd: 12.5 });
   });
+
+  it("drops rows without a wallet", () => {
+    const board = normalizePumpBoard({
+      period: "weekly",
+      entries: [
+        { rank: 1, wallet: "Abc", pnlUsd: 12.5 },
+        { rank: 2, wallet: "", pnlUsd: 99 },
+        { rank: 3, pnlUsd: 42 },
+      ],
+    });
+    expect(board.traders).toHaveLength(1);
+  });
 });
 
 describe("normalizeBoard", () => {
@@ -96,6 +108,28 @@ describe("normalizeBoard", () => {
 
   it("reads FomoScan entries field", () => {
     expect(normalizeBoard({ window: "all", entries: BOARD }).traders).toHaveLength(2);
+  });
+
+  it("drops poisoned rows instead of passing them to settle math (F-07)", () => {
+    const board = normalizeBoard({
+      window: "all",
+      capturedAt: 123,
+      traders: [
+        { rank: 1, id: "aaa", handle: "alpha", pnl: 100.5, volume: 1, numTrades: 3 },
+        { rank: 2, id: "bbb", handle: "beta", pnl: Number.POSITIVE_INFINITY },
+        { rank: 3, id: "ccc", handle: "gamma", pnl: Number.NaN },
+        { rank: 4, id: "ddd", handle: "delta", pnl: "1000000" },
+        { rank: 5, handle: "no-id", pnl: 5 },
+        { rank: 6, id: "", handle: "empty-id", pnl: 5 },
+      ],
+    });
+    expect(board.capturedAt).toBe(123);
+    expect(board.traders).toHaveLength(1);
+    expect(board.traders[0]).toMatchObject({ id: "aaa", pnl: 100.5 });
+  });
+
+  it("drops a non-finite capturedAt", () => {
+    expect(normalizeBoard({ window: "all", capturedAt: Number.NaN, traders: [] }).capturedAt).toBeUndefined();
   });
 });
 

@@ -205,29 +205,54 @@ export function normalizePumpBoard(
   return {
     period: period === "daily" || period === "weekly" || period === "monthly" ? period : fallback,
     capturedAt: numOrNull(raw.capturedAt),
-    traders: entries.map((row, i) => ({
-      rank: typeof row.rank === "number" ? row.rank : i + 1,
-      wallet: typeof row.wallet === "string" ? row.wallet : "",
-      username: strOrNull(row.username),
-      isVerified: typeof row.isVerified === "boolean" ? row.isVerified : null,
-      pnlSol: numOrNull(row.pnlSol),
-      pnlUsd: numOrNull(row.pnlUsd),
-      pnlPercent: numOrNull(row.pnlPercent),
-      realizedPnlUsd: numOrNull(row.realizedPnlUsd),
-      unrealizedPnlUsd: numOrNull(row.unrealizedPnlUsd),
-    })),
+    traders: entries
+      .map((row, i) => ({
+        rank: typeof row.rank === "number" ? row.rank : i + 1,
+        wallet: typeof row.wallet === "string" ? row.wallet : "",
+        username: strOrNull(row.username),
+        isVerified: typeof row.isVerified === "boolean" ? row.isVerified : null,
+        pnlSol: numOrNull(row.pnlSol),
+        pnlUsd: numOrNull(row.pnlUsd),
+        pnlPercent: numOrNull(row.pnlPercent),
+        realizedPnlUsd: numOrNull(row.realizedPnlUsd),
+        unrealizedPnlUsd: numOrNull(row.unrealizedPnlUsd),
+      }))
+      .filter((t) => t.wallet.length > 0),
+  };
+}
+
+/**
+ * One board row, validated. Rows without a string id or with a non-finite
+ * pnl are dropped — a single poisoned row must not abort downstream settle
+ * math (`usdToMicro` throws on non-finite input).
+ */
+function normalizeEntry(row: unknown, i: number): LeaderboardEntry | null {
+  const r = row as Record<string, unknown>;
+  const id = strOrNull(r.id);
+  const pnl = numOrNull(r.pnl);
+  if (!id || pnl == null) return null;
+  return {
+    rank: numOrNull(r.rank) ?? i + 1,
+    id,
+    handle: typeof r.handle === "string" ? r.handle : "",
+    label: typeof r.label === "string" ? r.label : undefined,
+    avatarUrl: typeof r.avatarUrl === "string" ? r.avatarUrl : undefined,
+    pnl,
+    volume: numOrNull(r.volume) ?? 0,
+    followers: numOrNull(r.followers) ?? undefined,
+    numTrades: numOrNull(r.numTrades) ?? 0,
   };
 }
 
 export function normalizeBoard(raw: Leaderboard | LeaderboardEntry[] | Record<string, unknown>): Leaderboard {
-  if (Array.isArray(raw)) {
-    return { window: "all", traders: raw };
-  }
-  const obj = raw as Record<string, unknown>;
-  const traders = (obj.traders ?? obj.entries ?? obj.data ?? []) as LeaderboardEntry[];
+  const obj = (Array.isArray(raw) ? { traders: raw } : raw) as Record<string, unknown>;
+  const rows = obj.traders ?? obj.entries ?? obj.data ?? [];
+  const traders = (Array.isArray(rows) ? rows : [])
+    .map((row, i) => normalizeEntry(row, i))
+    .filter((t): t is LeaderboardEntry => t != null);
   return {
-    window: (obj.window as string) ?? "all",
-    capturedAt: obj.capturedAt as number | undefined,
+    window: typeof obj.window === "string" ? obj.window : "all",
+    capturedAt: numOrNull(obj.capturedAt) ?? undefined,
     traders,
   };
 }

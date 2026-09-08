@@ -14,16 +14,28 @@ export type AnnounceInput = {
   pnlUsd?: number;
 };
 
+/** X handle rules: 1–15 chars, letters/digits/underscore. Anything else is not a handle. */
 export function handleTag(handle: string): string {
   const h = handle.replace(/^@/, "").trim();
-  return h ? `@${h}` : "@unknown";
+  return /^[A-Za-z0-9_]{1,15}$/.test(h) ? `@${h}` : "@unknown";
 }
 
+/**
+ * Display names are free text from the oracle or from POST bodies. Strip
+ * control characters (newline injection breaks tweet structure) and `@`
+ * (a name must not mint mentions), collapse whitespace, cap length.
+ */
 export function displayName(name: string | null | undefined, handle: string): string {
-  const n = name?.trim();
+  const n = name
+    ?.replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/https?:\/\/\S+|www\.\S+/gi, "")
+    .replace(/@/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 50);
   if (n) return n;
   const h = handle.replace(/^@/, "").trim();
-  return h || "this trader";
+  return /^[A-Za-z0-9_]{1,15}$/.test(h) ? h : "this trader";
 }
 
 /** Extra % of current PnL needed to hit the mark. Null when PnL is not positive. */
@@ -127,7 +139,9 @@ export type BetAnnounceInput = {
 };
 
 export function shortWallet(address: string): string {
-  const a = address.trim();
+  // Base58 only — a wallet string must not carry whitespace or markup.
+  const a = address.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "");
+  if (!a) return "unknown";
   if (a.length <= 8) return a;
   return `${a.slice(0, 4)}…${a.slice(-4)}`;
 }

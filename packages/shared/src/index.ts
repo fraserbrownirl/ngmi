@@ -13,6 +13,9 @@ export type MarketParams = {
 };
 
 export function usdToMicro(usd: number): bigint {
+  if (!Number.isFinite(usd)) {
+    throw new Error(`usdToMicro: non-finite input (${usd})`);
+  }
   return BigInt(Math.round(usd * 10 ** USD_DECIMALS));
 }
 

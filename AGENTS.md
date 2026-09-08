@@ -17,7 +17,7 @@ Stay on Anchor **0.32** for the first deploy if the workspace already builds. Do
 
 1. Pin CLI versions from `solana-dev` `references/compatibility-matrix.md`.
 2. `anchor test` (or Surfpool). Then the Trail of Bits scanner.
-3. `anchor deploy --provider.cluster devnet`. Write the program id into `Anchor.toml` and the web client. Redeploys upgrade the same id in place — never `solana program close` (burns the id forever, orphans every PDA it owns). Short on funds: stop and report; do not self-fund from program rent. After any id change, grep with gitignore disabled (`rg --no-ignore`) — local-only files (`apps/web`) still carry the old id.
+3. `anchor deploy --provider.cluster devnet`. Write the program id into `Anchor.toml` and the web client, and regen the client (`npx codama run js`). Then `pnpm devnet:init` (config + rake 500/300/100/50 + fresh test-USDC mint; idempotent) and `pnpm smoke:devnet` (creates and resolves market 1). Redeploys upgrade the same id in place — never `solana program close` (burns the id forever, orphans every PDA it owns). Short on funds: stop and report; do not self-fund from program rent. After any id change, grep with gitignore disabled (`rg --no-ignore`) — local-only files (`apps/web`) still carry the old id.
 4. Wire Phantom/Solflare via Kit (`solana-dev` frontend notes). Drop the local JSON pot / fake wallet.
 5. Keeper posts `endPnl` on a first-print hit, or after T, with a dedicated resolver keypair.
 6. Community testnet: airdrop test USDC to current NGMI holders.

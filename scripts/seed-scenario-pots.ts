@@ -41,7 +41,7 @@ import {
   getResolveMarketInstructionAsync,
   Outcome,
 } from "@fomopred/fomo-pnl-client";
-import { fomoUserIdToBytes } from "@fomopred/shared";
+import { fomoUserIdToBytes, sendWithRetry } from "@fomopred/shared";
 import {
   BET,
   justOverMarks,
@@ -82,15 +82,7 @@ function kit(user: TransactionSigner) {
 }
 
 async function send(client: KitClient, ixs: Parameters<KitClient["sendTransaction"]>[0]) {
-  for (let i = 0; i < 6; i++) {
-    try {
-      return await client.sendTransaction(ixs);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (!/429|Too Many Requests|WebSocket/i.test(msg) || i === 5) throw e;
-      await sleep(12_000);
-    }
-  }
+  return sendWithRetry(() => client.sendTransaction(ixs));
 }
 
 async function faucet(owner: Address) {

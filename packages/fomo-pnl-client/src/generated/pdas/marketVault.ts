@@ -23,7 +23,7 @@ export async function findMarketVaultPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU" as Address<"HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU">,
+    programAddress = "pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j" as Address<"pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

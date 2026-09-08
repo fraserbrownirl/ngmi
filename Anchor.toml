@@ -7,10 +7,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-fomo_pnl = "HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU"
+fomo_pnl = "pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j"
 
 [programs.localnet]
-fomo_pnl = "HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU"
+fomo_pnl = "pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j"
 
 [registry]
 url = "https://api.apr.dev"

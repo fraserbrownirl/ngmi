@@ -14,6 +14,7 @@ import {
   fomoUserIdToBytes,
   bytesToFomoUserId,
   rakeAmount,
+  sendWithRetry,
   usdToMicro,
   validateRake,
   winnerPayoutAfterRake,
@@ -69,5 +70,59 @@ describe("shared schema", () => {
     expect(winnerPayoutAfterRake(200_000_000, 400_000_000, 100_000_000, 5_000_000)).toBe(
       247_500_000,
     );
+  });
+});
+
+describe("sendWithRetry", () => {
+  it("returns the first success without retrying", async () => {
+    let calls = 0;
+    const out = await sendWithRetry(async () => {
+      calls += 1;
+      return "ok";
+    });
+    expect(out).toBe("ok");
+    expect(calls).toBe(1);
+  });
+
+  it("retries throttle errors then succeeds", async () => {
+    let calls = 0;
+    const out = await sendWithRetry(
+      async () => {
+        calls += 1;
+        if (calls < 3) throw new Error("429 Too Many Requests");
+        return "ok";
+      },
+      { backoffMs: 1 },
+    );
+    expect(out).toBe("ok");
+    expect(calls).toBe(3);
+  });
+
+  it("does not retry non-throttle errors", async () => {
+    let calls = 0;
+    await expect(
+      sendWithRetry(
+        async () => {
+          calls += 1;
+          throw new Error("TransactionExpiredBlockheightExceeded");
+        },
+        { backoffMs: 1 },
+      ),
+    ).rejects.toThrow("TransactionExpiredBlockheightExceeded");
+    expect(calls).toBe(1);
+  });
+
+  it("gives up after the attempt cap", async () => {
+    let calls = 0;
+    await expect(
+      sendWithRetry(
+        async () => {
+          calls += 1;
+          throw new Error("429");
+        },
+        { attempts: 3, backoffMs: 1 },
+      ),
+    ).rejects.toThrow("429");
+    expect(calls).toBe(3);
   });
 });

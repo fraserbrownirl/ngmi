@@ -2,7 +2,7 @@
 
 This is **not** an EVM or Solidity codebase. The pot is an Anchor 0.32 program on Solana. Submit this file plus the GitHub URL as the engagement description.
 
-Program id (localnet / devnet): `HALhAjDkAy6nJDk7LU5grN8GbChfNhi816aaVFj5iFxU`
+Program id (localnet / devnet): `pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j`
 
 Source: [`programs/fomo-pnl/src/lib.rs`](programs/fomo-pnl/src/lib.rs)
 

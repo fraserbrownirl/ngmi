@@ -124,3 +124,31 @@ export function winnerPayoutAfterRake(
 ): number {
   return userBet + Math.floor((userBet * (losePool - rakeTotal)) / winPool);
 }
+
+/** Default match for public-RPC throttling and flaky websocket confirms. */
+export const RETRYABLE_TX = /429|Too Many Requests|WebSocket/i;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Send a transaction (or any RPC-bound thunk) with backoff on throttling.
+ * Defaults match the devnet seed drivers: 6 attempts, 12s apart.
+ */
+export async function sendWithRetry<T>(
+  fn: () => Promise<T>,
+  opts: { attempts?: number; backoffMs?: number; retryOn?: RegExp } = {},
+): Promise<T> {
+  const attempts = opts.attempts ?? 6;
+  const backoffMs = opts.backoffMs ?? 12_000;
+  const retryOn = opts.retryOn ?? RETRYABLE_TX;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!retryOn.test(msg) || i === attempts - 1) throw e;
+      await sleep(backoffMs);
+    }
+  }
+  throw new Error("unreachable");
+}

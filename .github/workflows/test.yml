@@ -71,7 +71,9 @@ jobs:
           key: avm-0.32.1-${{ runner.os }}-${{ hashFiles('Anchor.toml') }}
       - name: Install Anchor 0.32.1
         run: |
-          cargo install avm --locked
+          # No --locked: avm's pinned openssl-sys 0.6.7 predates OpenSSL 3
+          # and does not compile on ubuntu-latest.
+          cargo install avm
           avm install 0.32.1
           avm use 0.32.1
           echo "$HOME/.avm/bin" >> "$GITHUB_PATH"

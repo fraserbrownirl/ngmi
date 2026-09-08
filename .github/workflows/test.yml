@@ -63,19 +63,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: programs/fomo-pnl
-      - name: Cache avm + anchor-cli
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.avm
-          key: avm-0.32.1-${{ runner.os }}-${{ hashFiles('Anchor.toml') }}
       - name: Install Anchor 0.32.1
         run: |
-          # No --locked: avm's pinned openssl-sys 0.6.7 predates OpenSSL 3
-          # and does not compile on ubuntu-latest.
-          cargo install avm
-          avm install 0.32.1
-          avm use 0.32.1
-          echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
+          # Prebuilt release binary: building avm/anchor-cli from source pins
+          # an openssl-sys too old for OpenSSL 3 on ubuntu-latest.
+          sudo curl -sSfL -o /usr/local/bin/anchor \
+            https://github.com/solana-foundation/anchor/releases/download/v0.32.1/anchor-0.32.1-x86_64-unknown-linux-gnu
+          sudo chmod +x /usr/local/bin/anchor
+          anchor --version
       - run: pnpm install --frozen-lockfile
       - run: anchor test

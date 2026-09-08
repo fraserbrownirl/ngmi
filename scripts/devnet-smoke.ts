@@ -86,7 +86,7 @@ describe("devnet smoke: fomo_pnl", () => {
         DECIMALS
       );
       await program.methods
-        .initialize(admin.publicKey, 0)
+        .initialize(admin.publicKey)
         .accounts({
           admin: admin.publicKey,
           config: configPda,

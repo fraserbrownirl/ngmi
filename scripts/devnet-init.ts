@@ -1,6 +1,6 @@
 /**
  * Initialize a fresh devnet deployment: config (admin/resolver/fee recipient =
- * deploy wallet, maxFeeBps 0), rake 500/300/100/50 bps, and a fresh test-USDC
+ * deploy wallet), rake 500/300/100/50 bps, and a fresh test-USDC
  * mint (deploy wallet is mint authority — that is what the /api/faucet route
  * mints from). Idempotent: existing accounts are reported, not touched.
  *
@@ -78,7 +78,7 @@ async function main() {
       DECIMALS,
     );
     const sig = await program.methods
-      .initialize(admin.publicKey, 0)
+      .initialize(admin.publicKey)
       .accounts({
         admin: admin.publicKey,
         config: configPda,

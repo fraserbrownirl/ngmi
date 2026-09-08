@@ -1,20 +1,21 @@
 ---
-description: Deploy tote UI changes to Vercel staging — that is the test target
+description: Deploy tote UI — production is ngmi.markets, staging alias is ngmi-stage
 alwaysApply: true
 ---
 
-# Two Vercel apps (do not mix)
+# One tote project, two hostnames (do not mix with splash)
 
 | URL | Project | Tree | What it is |
 |---|---|---|---|
-| **https://ngmi-stage.vercel.app** | `ngmi-stage` (`prj_CAYYd91QDAJvDJSwLDPWnGN5gfRb`) | `/tmp/ngmi-stage` + `apps/web` | Next.js tote. Title **NGMI staging**. |
-| **https://ngmi.markets** | `ngmi` (`prj_RVPkHN5tGZFTCrte7DMZMMrkiMp0`) | `apps/landing` | Static splash. Title **NGMI — over the mark before T**. |
+| **https://ngmi.markets** | `ngmi-stage` (`prj_CAYYd91QDAJvDJSwLDPWnGN5gfRb`) | `/tmp/ngmi-stage` + `apps/web` | Next.js tote. Title **NGMI**. |
+| **https://ngmi-stage.vercel.app** | same `ngmi-stage` | same | Same tote. Title **NGMI staging**. |
+| splash project `ngmi` (`prj_RVPkHN5tGZFTCrte7DMZMMrkiMp0`) | `apps/landing` | Parked. Do not point `ngmi.markets` at it. |
 
-If `ngmi-stage.vercel.app` title is the splash line, landing overwrote it. Redeploy the tote immediately. Never `vercel --name ngmi-stage` from `apps/landing`. Never `vercel link` landing to `ngmi-stage`. Never set this project's root to `apps/landing`. `git.deploymentEnabled` is false on the tote.
+If `ngmi.markets` title is the splash line (**NGMI — over the mark before T**), landing stole the domain. Move `ngmi.markets` / `www.ngmi.markets` back onto `ngmi-stage` and redeploy the tote. Never `vercel --name ngmi-stage` from `apps/landing`. Never `vercel link` landing to `ngmi-stage`. Never set this project's root to `apps/landing`. `git.deploymentEnabled` is false on the tote.
 
 ## Tote deploy
 
-After any `apps/web` change, deploy **ngmi-stage** before saying the work is done. `apps/web` stays gitignored.
+After any `apps/web` change, deploy **ngmi-stage** before saying the work is done. `apps/web` stays gitignored. That production deploy is what `ngmi.markets` serves.
 
 Sync into `/tmp/ngmi-stage` (keep `.vercel` and `.env.local`). Workspace yaml in that tree **must** include `apps/web`. Root directory `apps/web`, framework `nextjs`. Then:
 
@@ -22,4 +23,4 @@ Sync into `/tmp/ngmi-stage` (keep `.vercel` and `.env.local`). Workspace yaml in
 npx --yes vercel@latest deploy --prod --yes --cwd /tmp/ngmi-stage --scope frsr --logs
 ```
 
-Splash deploys: `pnpm deploy` inside `apps/landing` only (asserts project `ngmi`).
+Splash folder deploys (`pnpm deploy` in `apps/landing`) stay on project `ngmi` only — never `--force` those domains onto `ngmi`.

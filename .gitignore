@@ -18,5 +18,6 @@ dist
 .vercel
 apps/web
 data/*.json
+services/keeper/data/
 docs/plans/
 docs/ideation/

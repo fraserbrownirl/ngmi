@@ -13,6 +13,10 @@ pub struct SetResolver<'info> {
 }
 
 pub fn handler(ctx: Context<SetResolver>, resolver: Pubkey) -> Result<()> {
+    require!(
+        resolver != Pubkey::default(),
+        PredictionMarketError::InvalidResolver
+    );
     ctx.accounts.config.resolver = resolver;
     Ok(())
 }

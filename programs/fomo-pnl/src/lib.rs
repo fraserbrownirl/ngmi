@@ -8,14 +8,14 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j");
+declare_id!("CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM");
 
 #[program]
 pub mod fomo_pnl {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>, fee_recipient: Pubkey, max_fee_bps: u16) -> Result<()> {
-        instructions::initialize::handler(ctx, fee_recipient, max_fee_bps)
+    pub fn initialize(ctx: Context<Initialize>, fee_recipient: Pubkey) -> Result<()> {
+        instructions::initialize::handler(ctx, fee_recipient)
     }
 
     pub fn create_market(
@@ -72,8 +72,16 @@ pub mod fomo_pnl {
         instructions::pause::unpause_handler(ctx)
     }
 
-    pub fn update_config(ctx: Context<UpdateConfig>, fee_recipient: Pubkey, max_fee_bps: u16) -> Result<()> {
-        instructions::update_config::handler(ctx, fee_recipient, max_fee_bps)
+    pub fn update_config(ctx: Context<UpdateConfig>, fee_recipient: Pubkey) -> Result<()> {
+        instructions::update_config::handler(ctx, fee_recipient)
+    }
+
+    pub fn transfer_admin(ctx: Context<TransferAdmin>, new_admin: Pubkey) -> Result<()> {
+        instructions::transfer_admin::handler(ctx, new_admin)
+    }
+
+    pub fn accept_admin(ctx: Context<AcceptAdmin>) -> Result<()> {
+        instructions::transfer_admin::accept_handler(ctx)
     }
 
     pub fn set_resolver(ctx: Context<SetResolver>, resolver: Pubkey) -> Result<()> {

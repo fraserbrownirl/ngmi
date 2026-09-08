@@ -8,6 +8,8 @@ pub const SETTLE_CLOSE_AT_T: u8 = 0;
 pub const SETTLE_FIRST_PRINT: u8 = 1;
 /// Longest a new pot may run. Keeps the handle on the live board.
 pub const MAX_RESOLUTION_WINDOW_SECS: i64 = 3 * 24 * 60 * 60;
+/// Tolerance (seconds) for resolver-supplied captured_at ahead of chain time.
+pub const MAX_CAPTURE_SKEW_SECS: i64 = 300;
 
 pub fn resolution_in_window(now: i64, resolution_time: i64) -> bool {
     resolution_time > now

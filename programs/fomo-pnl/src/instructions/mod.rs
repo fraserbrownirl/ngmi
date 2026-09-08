@@ -9,6 +9,7 @@ pub mod resolve_market;
 pub mod set_founder;
 pub mod set_rake;
 pub mod set_resolver;
+pub mod transfer_admin;
 pub mod transfer_rake_owner;
 pub mod update_config;
 
@@ -34,6 +35,8 @@ pub use set_founder::*;
 pub use set_rake::*;
 #[allow(ambiguous_glob_reexports)]
 pub use set_resolver::*;
+#[allow(ambiguous_glob_reexports)]
+pub use transfer_admin::*;
 #[allow(ambiguous_glob_reexports)]
 pub use transfer_rake_owner::*;
 #[allow(ambiguous_glob_reexports)]

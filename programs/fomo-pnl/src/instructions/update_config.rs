@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 
-use crate::constants::MAX_FEE_LIMIT;
 use crate::error::PredictionMarketError;
 use crate::state::Config;
 
@@ -13,9 +12,7 @@ pub struct UpdateConfig<'info> {
     pub config: Account<'info, Config>,
 }
 
-pub fn handler(ctx: Context<UpdateConfig>, fee_recipient: Pubkey, max_fee_bps: u16) -> Result<()> {
-    require!(max_fee_bps <= MAX_FEE_LIMIT, PredictionMarketError::InvalidFee);
+pub fn handler(ctx: Context<UpdateConfig>, fee_recipient: Pubkey) -> Result<()> {
     ctx.accounts.config.fee_recipient = fee_recipient;
-    ctx.accounts.config.max_fee_bps = max_fee_bps;
     Ok(())
 }

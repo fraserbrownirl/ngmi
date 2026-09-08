@@ -28,7 +28,7 @@ pub struct ClaimWinnings<'info> {
         mut,
         seeds = [UserPosition::SEED, market_id.to_le_bytes().as_ref(), user.key().as_ref()],
         bump = user_position.bump,
-        constraint = user_position.user == user.key() @ PredictionMarketError::InvalidAdmin,
+        constraint = user_position.user == user.key() @ PredictionMarketError::InvalidOwner,
         constraint = !user_position.claimed @ PredictionMarketError::AlreadyClaimed
     )]
     pub user_position: Account<'info, UserPosition>,

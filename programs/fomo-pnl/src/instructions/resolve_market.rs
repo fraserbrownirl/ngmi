@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 
+use crate::constants::MAX_CAPTURE_SKEW_SECS;
 use crate::error::PredictionMarketError;
 use crate::settle::rake_split;
 use crate::state::{Config, Market, MarketState, Outcome, Rake};
@@ -37,8 +38,9 @@ pub struct ResolveMarket<'info> {
     #[account(constraint = token_mint.key() == config.token_mint)]
     pub token_mint: Account<'info, Mint>,
 
-    /// CHECK: USDC ATA for the current founder. Validated in the handler so it
-    /// may be the same account as `creator_token` when founder opened the pot.
+    /// CHECK: USDC ATA for the current founder. Checked in the handler only
+    /// when the founder slice is non-zero; an invalid account sends that slice
+    /// to the burn treasury instead of blocking resolution.
     #[account(mut)]
     pub founder_token: UncheckedAccount<'info>,
 
@@ -54,24 +56,23 @@ pub struct ResolveMarket<'info> {
     )]
     pub agent_token: Account<'info, TokenAccount>,
 
-    /// CHECK: USDC ATA for `market.creator`. May equal `founder_token`.
+    /// CHECK: USDC ATA for `market.creator`. Checked in the handler only when
+    /// the creator slice is non-zero; an invalid account sends that slice to
+    /// the burn treasury instead of blocking resolution.
     #[account(mut)]
     pub creator_token: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
 }
 
-fn require_usdc_ata(info: &AccountInfo, mint: Pubkey, owner: Pubkey) -> Result<()> {
-    require_keys_eq!(
-        *info.owner,
-        anchor_spl::token::ID,
-        PredictionMarketError::InvalidTokenAccount
-    );
-    let acc = TokenAccount::try_deserialize(&mut &info.data.borrow()[..])
-        .map_err(|_| error!(PredictionMarketError::InvalidTokenAccount))?;
-    require!(acc.mint == mint, PredictionMarketError::InvalidTokenAccount);
-    require!(acc.owner == owner, PredictionMarketError::InvalidTokenAccount);
-    Ok(())
+fn is_usdc_ata(info: &AccountInfo, mint: Pubkey, owner: Pubkey) -> bool {
+    if *info.owner != anchor_spl::token::ID {
+        return false;
+    }
+    match TokenAccount::try_deserialize(&mut &info.data.borrow()[..]) {
+        Ok(acc) => acc.mint == mint && acc.owner == owner,
+        Err(_) => false,
+    }
 }
 
 fn pay_from_vault<'info>(
@@ -126,18 +127,18 @@ pub fn handler(
         return Ok(());
     }
 
-    let mint = ctx.accounts.config.token_mint;
-    require_usdc_ata(
-        &ctx.accounts.founder_token.to_account_info(),
-        mint,
-        ctx.accounts.rake.founder,
-    )?;
-    require_usdc_ata(
-        &ctx.accounts.creator_token.to_account_info(),
-        mint,
-        ctx.accounts.market.creator,
-    )?;
+    // captured_at is recorded on-chain: keep it inside the market's lifetime.
+    require!(
+        captured_at >= ctx.accounts.market.created_at
+            && captured_at
+                <= clock
+                    .unix_timestamp
+                    .checked_add(MAX_CAPTURE_SKEW_SECS)
+                    .ok_or(PredictionMarketError::Overflow)?,
+        PredictionMarketError::InvalidCapturedAt
+    );
 
+    let mint = ctx.accounts.config.token_mint;
     let winning = crate::settle::winning_outcome(end_pnl_usd, ctx.accounts.market.threshold_usd);
     let losing_pool = if winning == Outcome::Yes {
         ctx.accounts.market.no_pool
@@ -154,8 +155,36 @@ pub fn handler(
     .map_err(|e| error!(e))?;
     let rake_total = split.total().map_err(|e| error!(e))?;
 
+    // Founder/creator ATAs are checked only when their slice is non-zero, and
+    // an unpayable slice falls back to the burn treasury. A closed or wrong
+    // recipient ATA can never block resolution (F-03/F-06).
+    let founder_ok = split.founder > 0
+        && is_usdc_ata(
+            &ctx.accounts.founder_token.to_account_info(),
+            mint,
+            ctx.accounts.rake.founder,
+        );
+    let creator_ok = split.creator > 0
+        && is_usdc_ata(
+            &ctx.accounts.creator_token.to_account_info(),
+            mint,
+            ctx.accounts.market.creator,
+        );
+
+    let mut burn_total = split.burn;
+    if split.founder > 0 && !founder_ok {
+        burn_total = burn_total
+            .checked_add(split.founder)
+            .ok_or(PredictionMarketError::Overflow)?;
+    }
+    if split.creator > 0 && !creator_ok {
+        burn_total = burn_total
+            .checked_add(split.creator)
+            .ok_or(PredictionMarketError::Overflow)?;
+    }
+
     pay_from_vault(
-        split.burn,
+        burn_total,
         &ctx.accounts.market_vault,
         ctx.accounts.burn_token.to_account_info(),
         &ctx.accounts.market,
@@ -170,23 +199,7 @@ pub fn handler(
         market_id,
         &ctx.accounts.token_program,
     )?;
-
-    let founder_key = ctx.accounts.founder_token.key();
-    let creator_key = ctx.accounts.creator_token.key();
-    if founder_key == creator_key {
-        let combined = split
-            .founder
-            .checked_add(split.creator)
-            .ok_or(PredictionMarketError::Overflow)?;
-        pay_from_vault(
-            combined,
-            &ctx.accounts.market_vault,
-            ctx.accounts.founder_token.to_account_info(),
-            &ctx.accounts.market,
-            market_id,
-            &ctx.accounts.token_program,
-        )?;
-    } else {
+    if founder_ok {
         pay_from_vault(
             split.founder,
             &ctx.accounts.market_vault,
@@ -195,6 +208,8 @@ pub fn handler(
             market_id,
             &ctx.accounts.token_program,
         )?;
+    }
+    if creator_ok {
         pay_from_vault(
             split.creator,
             &ctx.accounts.market_vault,

@@ -52,7 +52,11 @@ pub struct CreateMarket<'info> {
     )]
     pub creator_token_account: Account<'info, TokenAccount>,
 
-    #[account(mut, token::mint = token_mint)]
+    #[account(
+        mut,
+        token::mint = token_mint,
+        token::authority = config.fee_recipient
+    )]
     pub fee_recipient_token_account: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,

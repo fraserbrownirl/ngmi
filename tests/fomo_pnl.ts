@@ -4,10 +4,12 @@ import { FomoPnl } from "../target/types/fomo_pnl";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
+  closeAccount,
   createMint,
   createAccount,
   getAccount,
   mintTo,
+  transfer,
 } from "@solana/spl-token";
 import { assert } from "chai";
 import {
@@ -182,14 +184,16 @@ describe("fomo_pnl", () => {
     marketId: number,
     endPnl: number,
     signer = admin,
-    creatorAta = aliceTokenAccount
+    creatorAta = aliceTokenAccount,
+    capturedAt?: number,
+    founderAta?: PublicKey
   ) => {
     const { marketPda, marketVaultPda } = getMarketPdas(marketId);
     await program.methods
       .resolveMarket(
         new anchor.BN(marketId),
         new anchor.BN(endPnl),
-        new anchor.BN(Math.floor(Date.now() / 1000))
+        new anchor.BN(capturedAt ?? Math.floor(Date.now() / 1000))
       )
       .accounts({
         resolver: signer.publicKey,
@@ -198,11 +202,24 @@ describe("fomo_pnl", () => {
         market: marketPda,
         marketVault: marketVaultPda,
         tokenMint,
-        founderToken: founderTokenAccount,
+        founderToken: founderAta ?? founderTokenAccount,
         burnToken: burnTokenAccount,
         agentToken: agentTokenAccount,
         creatorToken: creatorAta,
         tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([signer])
+      .rpc();
+  };
+
+  const cancelMarket = async (marketId: number, signer = admin) => {
+    const { marketPda } = getMarketPdas(marketId);
+    await program.methods
+      .cancelMarket(new anchor.BN(marketId))
+      .accounts({
+        resolver: signer.publicKey,
+        config: configPda,
+        market: marketPda,
       })
       .signers([signer])
       .rpc();
@@ -257,7 +274,7 @@ describe("fomo_pnl", () => {
     [configPda] = PublicKey.findProgramAddressSync([Buffer.from("config")], program.programId);
     [rakePda] = PublicKey.findProgramAddressSync([Buffer.from("rake")], program.programId);
     await program.methods
-      .initialize(admin.publicKey, 0)
+      .initialize(admin.publicKey)
       .accounts({
         admin: admin.publicKey,
         config: configPda,
@@ -700,6 +717,351 @@ describe("fomo_pnl", () => {
 
       const { marketVaultPda } = getMarketPdas(noMarketId);
       assert.equal(await tokenBal(marketVaultPda), 0);
+    });
+  });
+
+  /**
+   * Pre-mainnet audit regressions (F-03/F-06/F-12/F-16/F-19/F-21/F-23).
+   * Runs while founder/rake-owner are still the originals.
+   */
+  describe("security regressions", () => {
+    it("rejects resolve from a non-resolver signer", async () => {
+      const id = await createMarket(usdc(100), usdc(50), Math.floor(Date.now() / 1000) + 30);
+      await placeBet(alice, aliceTokenAccount, id, true, usdc(50));
+      await placeBet(bob, bobTokenAccount, id, false, usdc(50));
+      try {
+        await resolveMarket(id, usdc(200), alice);
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidResolver");
+      }
+    });
+
+    it("rejects cancel from a non-resolver; resolver cancel refunds in full", async () => {
+      const id = await createMarket(usdc(100), usdc(50), Math.floor(Date.now() / 1000) + 3);
+      await placeBet(alice, aliceTokenAccount, id, true, usdc(50));
+      await placeBet(bob, bobTokenAccount, id, false, usdc(50));
+      await waitUntil(Math.floor(Date.now() / 1000) + 3);
+      try {
+        await cancelMarket(id, alice);
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidResolver");
+      }
+      const aliceBefore = await tokenBal(aliceTokenAccount);
+      const bobBefore = await tokenBal(bobTokenAccount);
+      await cancelMarket(id, resolver);
+      const { marketPda } = getMarketPdas(id);
+      assert.deepEqual((await program.account.market.fetch(marketPda)).state, { cancelled: {} });
+      await claimWinnings({ key: alice, ata: aliceTokenAccount }, id);
+      await claimWinnings({ key: bob, ata: bobTokenAccount }, id);
+      assert.equal((await tokenBal(aliceTokenAccount)) - aliceBefore, usdc(50));
+      assert.equal((await tokenBal(bobTokenAccount)) - bobBefore, usdc(50));
+    });
+
+    it("rejects pause and set_resolver from a non-admin", async () => {
+      try {
+        await program.methods
+          .pause()
+          .accounts({ admin: alice.publicKey, config: configPda })
+          .signers([alice])
+          .rpc();
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidAdmin");
+      }
+      try {
+        await program.methods
+          .setResolver(alice.publicKey)
+          .accounts({ admin: alice.publicKey, config: configPda })
+          .signers([alice])
+          .rpc();
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidAdmin");
+      }
+    });
+
+    it("rejects the default pubkey as resolver", async () => {
+      try {
+        await program.methods
+          .setResolver(PublicKey.default)
+          .accounts({ admin: admin.publicKey, config: configPda })
+          .signers([admin])
+          .rpc();
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidResolver");
+      }
+    });
+
+    it("rejects a bet from a wrong-mint token account", async () => {
+      const id = await createMarket(usdc(100), usdc(50), Math.floor(Date.now() / 1000) + 30);
+      const mint2 = await createMint(provider.connection, admin, admin.publicKey, null, DECIMALS);
+      const aliceAta2 = await createAccount(provider.connection, admin, mint2, alice.publicKey);
+      await mintTo(provider.connection, admin, mint2, aliceAta2, admin, usdc(100));
+      try {
+        await placeBet(alice, aliceAta2, id, true, usdc(10));
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e).toLowerCase(), "mint");
+      }
+    });
+
+    it("rejects a claim through another user's position PDA", async () => {
+      const id = await createMarket(usdc(100), usdc(50), Math.floor(Date.now() / 1000) + 3);
+      await placeBet(alice, aliceTokenAccount, id, true, usdc(50));
+      await placeBet(bob, bobTokenAccount, id, false, usdc(50));
+      await waitUntil(Math.floor(Date.now() / 1000) + 3);
+      await resolveMarket(id, usdc(200), resolver);
+      const { marketPda, marketVaultPda } = getMarketPdas(id);
+      try {
+        await program.methods
+          .claimWinnings(new anchor.BN(id))
+          .accounts({
+            user: bob.publicKey,
+            market: marketPda,
+            marketVault: marketVaultPda,
+            userPosition: getPositionPda(id, alice.publicKey),
+            userTokenAccount: bobTokenAccount,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .signers([bob])
+          .rpc();
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e).toLowerCase(), "seed");
+      }
+    });
+
+    it("resolve survives a closed creator ATA; creator slice burns (F-03)", async () => {
+      const creator = await fundActor();
+      const id = await createMarketFor(creator, usdc(100), usdc(50), Math.floor(Date.now() / 1000) + 3);
+      await placeBet(alice, aliceTokenAccount, id, true, usdc(100));
+      await placeBet(bob, bobTokenAccount, id, false, usdc(400));
+      const leftover = await tokenBal(creator.ata);
+      await transfer(provider.connection, creator.key, creator.ata, aliceTokenAccount, creator.key, leftover);
+      await closeAccount(provider.connection, creator.key, creator.ata, alice.publicKey, creator.key);
+      await waitUntil(Math.floor(Date.now() / 1000) + 3);
+      const burnBefore = await tokenBal(burnTokenAccount);
+      await resolveMarket(id, usdc(200), resolver, creator.ata);
+      const { marketPda } = getMarketPdas(id);
+      assert.deepEqual((await program.account.market.fetch(marketPda)).state, { resolved: {} });
+      const expectedBurn = bpsOf(usdc(400), DEFAULT_BURN_BPS) + bpsOf(usdc(400), DEFAULT_CREATOR_BPS);
+      assert.equal((await tokenBal(burnTokenAccount)) - burnBefore, expectedBurn);
+    });
+
+    it("resolve survives a closed founder ATA; founder slice burns (F-06)", async () => {
+      const id = await createMarket(usdc(100), usdc(50), Math.floor(Date.now() / 1000) + 3);
+      await placeBet(alice, aliceTokenAccount, id, true, usdc(100));
+      await placeBet(bob, bobTokenAccount, id, false, usdc(400));
+      const founderBal = await tokenBal(founderTokenAccount);
+      if (founderBal > 0) {
+        await transfer(provider.connection, admin, founderTokenAccount, aliceTokenAccount, founder, founderBal);
+      }
+      await closeAccount(provider.connection, admin, founderTokenAccount, admin.publicKey, founder);
+      await waitUntil(Math.floor(Date.now() / 1000) + 3);
+      const burnBefore = await tokenBal(burnTokenAccount);
+      await resolveMarket(id, usdc(200), resolver);
+      const { marketPda } = getMarketPdas(id);
+      assert.deepEqual((await program.account.market.fetch(marketPda)).state, { resolved: {} });
+      const expectedBurn = bpsOf(usdc(400), DEFAULT_BURN_BPS) + bpsOf(usdc(400), FOUNDER_BPS);
+      assert.equal((await tokenBal(burnTokenAccount)) - burnBefore, expectedBurn);
+      founderTokenAccount = await createAccount(provider.connection, admin, tokenMint, founder.publicKey);
+    });
+
+    it("creator slice zero skips the creator ATA check entirely", async () => {
+      await program.methods
+        .setRake(500, 350, 100, 0)
+        .accounts({
+          owner: admin.publicKey,
+          rake: rakePda,
+          config: configPda,
+          tokenMint,
+          burnTreasury: burnTokenAccount,
+          agentTreasury: agentTokenAccount,
+        })
+        .signers([admin])
+        .rpc();
+      const creator = await fundActor();
+      const id = await createMarketFor(creator, usdc(100), usdc(50), Math.floor(Date.now() / 1000) + 3);
+      await program.methods
+        .setRake(DEFAULT_RAKE_BPS, DEFAULT_BURN_BPS, DEFAULT_AGENT_BPS, DEFAULT_CREATOR_BPS)
+        .accounts({
+          owner: admin.publicKey,
+          rake: rakePda,
+          config: configPda,
+          tokenMint,
+          burnTreasury: burnTokenAccount,
+          agentTreasury: agentTokenAccount,
+        })
+        .signers([admin])
+        .rpc();
+      await placeBet(alice, aliceTokenAccount, id, true, usdc(100));
+      await placeBet(bob, bobTokenAccount, id, false, usdc(400));
+      const leftover = await tokenBal(creator.ata);
+      await transfer(provider.connection, creator.key, creator.ata, aliceTokenAccount, creator.key, leftover);
+      await closeAccount(provider.connection, creator.key, creator.ata, alice.publicKey, creator.key);
+      await waitUntil(Math.floor(Date.now() / 1000) + 3);
+      const burnBefore = await tokenBal(burnTokenAccount);
+      await resolveMarket(id, usdc(200), resolver, creator.ata);
+      const { marketPda } = getMarketPdas(id);
+      assert.deepEqual((await program.account.market.fetch(marketPda)).state, { resolved: {} });
+      assert.equal((await tokenBal(burnTokenAccount)) - burnBefore, bpsOf(usdc(400), 350));
+    });
+
+    it("bounds captured_at to the market window (F-21)", async () => {
+      const id = await createMarket(usdc(100), usdc(50), Math.floor(Date.now() / 1000) + 3);
+      await placeBet(alice, aliceTokenAccount, id, true, usdc(50));
+      await placeBet(bob, bobTokenAccount, id, false, usdc(50));
+      await waitUntil(Math.floor(Date.now() / 1000) + 3);
+      const { marketPda } = getMarketPdas(id);
+      const createdAt = (await program.account.market.fetch(marketPda)).createdAt.toNumber();
+      try {
+        await resolveMarket(id, usdc(200), resolver, aliceTokenAccount, createdAt - 10);
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidCapturedAt");
+      }
+      try {
+        await resolveMarket(id, usdc(200), resolver, aliceTokenAccount, Math.floor(Date.now() / 1000) + 600);
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidCapturedAt");
+      }
+      await resolveMarket(id, usdc(200), resolver);
+      assert.deepEqual((await program.account.market.fetch(marketPda)).state, { resolved: {} });
+    });
+
+    it("binds the create fee to the configured fee recipient (F-16)", async () => {
+      currentMarketId += 1;
+      const bad = getMarketPdas(currentMarketId);
+      try {
+        await program.methods
+          .createMarket(
+            Array.from(trader),
+            new anchor.BN(usdc(100)),
+            new anchor.BN(Math.floor(Date.now() / 1000) + 30),
+            new anchor.BN(usdc(50)),
+            new anchor.BN(usdc(5)),
+            0
+          )
+          .accounts({
+            creator: alice.publicKey,
+            config: configPda,
+            rake: rakePda,
+            market: bad.marketPda,
+            marketVault: bad.marketVaultPda,
+            tokenMint,
+            creatorTokenAccount: aliceTokenAccount,
+            feeRecipientTokenAccount: bobTokenAccount,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([alice])
+          .rpc();
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e).toLowerCase(), "owner");
+      }
+      currentMarketId -= 1;
+
+      const feeBefore = await tokenBal(feeRecipientTokenAccount);
+      currentMarketId += 1;
+      const good = getMarketPdas(currentMarketId);
+      await program.methods
+        .createMarket(
+          Array.from(trader),
+          new anchor.BN(usdc(100)),
+          new anchor.BN(Math.floor(Date.now() / 1000) + 30),
+          new anchor.BN(usdc(50)),
+          new anchor.BN(usdc(5)),
+          0
+        )
+        .accounts({
+          creator: alice.publicKey,
+          config: configPda,
+          rake: rakePda,
+          market: good.marketPda,
+          marketVault: good.marketVaultPda,
+          tokenMint,
+          creatorTokenAccount: aliceTokenAccount,
+          feeRecipientTokenAccount,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([alice])
+        .rpc();
+      assert.equal((await tokenBal(feeRecipientTokenAccount)) - feeBefore, usdc(5));
+    });
+
+    it("two-step admin transfer rotates the admin key (F-13)", async () => {
+      const newAdmin = Keypair.generate();
+      await airdrop(newAdmin);
+      await program.methods
+        .transferAdmin(newAdmin.publicKey)
+        .accounts({ admin: admin.publicKey, config: configPda })
+        .signers([admin])
+        .rpc();
+      try {
+        await program.methods
+          .acceptAdmin()
+          .accounts({ pending: alice.publicKey, config: configPda })
+          .signers([alice])
+          .rpc();
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidAdmin");
+      }
+      // old admin still works until accept
+      await program.methods
+        .pause()
+        .accounts({ admin: admin.publicKey, config: configPda })
+        .signers([admin])
+        .rpc();
+      await program.methods
+        .unpause()
+        .accounts({ admin: admin.publicKey, config: configPda })
+        .signers([admin])
+        .rpc();
+      await program.methods
+        .acceptAdmin()
+        .accounts({ pending: newAdmin.publicKey, config: configPda })
+        .signers([newAdmin])
+        .rpc();
+      try {
+        await program.methods
+          .pause()
+          .accounts({ admin: admin.publicKey, config: configPda })
+          .signers([admin])
+          .rpc();
+        assert.fail("should revert");
+      } catch (e: unknown) {
+        assert.include(String(e), "InvalidAdmin");
+      }
+      await program.methods
+        .pause()
+        .accounts({ admin: newAdmin.publicKey, config: configPda })
+        .signers([newAdmin])
+        .rpc();
+      await program.methods
+        .unpause()
+        .accounts({ admin: newAdmin.publicKey, config: configPda })
+        .signers([newAdmin])
+        .rpc();
+      // rotate back so later suites keep the original admin
+      await program.methods
+        .transferAdmin(admin.publicKey)
+        .accounts({ admin: newAdmin.publicKey, config: configPda })
+        .signers([newAdmin])
+        .rpc();
+      await program.methods
+        .acceptAdmin()
+        .accounts({ pending: admin.publicKey, config: configPda })
+        .signers([admin])
+        .rpc();
+      const cfg = await program.account.config.fetch(configPda);
+      assert.equal(cfg.admin.toBase58(), admin.publicKey.toBase58());
     });
   });
 

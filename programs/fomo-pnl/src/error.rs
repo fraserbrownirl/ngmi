@@ -50,4 +50,8 @@ pub enum PredictionMarketError {
     ZeroAmount,
     #[msg("Invalid settle kind")]
     InvalidSettleKind,
+    #[msg("Invalid position owner")]
+    InvalidOwner,
+    #[msg("Captured timestamp outside market window")]
+    InvalidCapturedAt,
 }

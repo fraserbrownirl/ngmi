@@ -8,7 +8,7 @@ Default settle is **first-print**: the next board print over the mark, at or aft
 
 MIT. Tote UI is not in this repository.
 
-**Program id** (localnet / devnet): `pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j`
+**Program id** (localnet / devnet): `CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM`
 
 | | |
 |---|---|
@@ -48,7 +48,8 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `FOMO_SERVER_KEYPAIR` | no locally | JSON byte array; else `~/.config/solana/id.json` |
 | `SOLANA_RPC_URL` | no | Scripts; defaults to public devnet |
 | `TWITTERAPI_API_KEY` | no | TwitterAPI.io key; platform events post to `@ngmi_cto` and new originals copy into the group |
-| `TWITTERAPI_PROXY` | first login | Residential proxy for the one-time CTO login |
+| `TWITTERAPI_PROXY` | yes (CTO posts) | Sticky Webshare URL; same proxy on login and every v2 write |
+| `WEBSHARE_API_KEY` | no | Webshare dashboard token for the CTO proxy account (list/manage proxies) |
 | `TWITTER_CTO_USERNAME` | no | Handle to post as; default `ngmi_cto` |
 | `TWITTER_CTO_EMAIL` | first login | CTO account email (not needed once the session is Active) |
 | `TWITTER_CTO_PASSWORD` | first login | CTO account password |
@@ -59,14 +60,15 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `X_OAUTH_REDIRECT_URI` | no | Portal callback; default `http://localhost:3000/api/oauth/x/callback` |
 | `NEXT_PUBLIC_APP_URL` | no | Canonical origin for that callback |
 | `SOLANA_MAINNET_RPC_URL` | no | Holdings lookup for tweets; public mainnet if unset |
-| `ADMIN_TOKEN` | no | If set, gates operator FomoScan/pot stats |
+| `ADMIN_TOKEN` | no | Gates every privileged tote route (stats, keeper tick, announce, traders, X status). Production denies them when unset |
+| `NEXT_PUBLIC_SOLANA_CLUSTER` | no | `devnet` (default) or `mainnet`; faucet/demo routes answer on devnet only |
 | `TELEGRAM_BOT_TOKEN` | yes (feedback bot) | BotFather token |
 | `TELEGRAM_GROUP_ID` | no | If set, Menu and posts are scoped to that group; otherwise any group the bot is in |
 | `TWITTER_BEARER_TOKEN` | no | X app Bearer; if set, new official posts are copied into the group |
 | `TWITTER_USERNAME` | no | Handle to share; default `ngmidotmarkets` |
 | `TWITTERAPI_CTO_USERNAME` | no | Handle for the TwitterAPI.io group poll; default `ngmi_cto` |
 
-Never commit a real keypair, X token, bot token, or `.env`. Platform events post to `@ngmi_cto` via TwitterAPI.io when `TWITTERAPI_API_KEY` is set: new market, new bet (side, stake, wallet, book), and resolved YES/NO. First login also needs `TWITTERAPI_PROXY` plus `TWITTER_CTO_*`; later posts only need the API key. Unset `TWITTERAPI_API_KEY` falls back to the connected OAuth account (`X_CLIENT_ID`); unset both leaves posting a no-op.
+Never commit a real keypair, X token, bot token, or `.env`. Platform events post to `@ngmi_cto` via TwitterAPI.io when `TWITTERAPI_API_KEY` is set: new market, new bet (side, stake, wallet, book), and resolved YES/NO. Login is `user_login_v2`; writes are `_v2` with the same sticky `TWITTERAPI_PROXY`. Unset `TWITTERAPI_API_KEY` falls back to the connected OAuth account (`X_CLIENT_ID`); unset both leaves posting a no-op.
 
 Group feedback: add the bot to the public group (admin if you want it to delete the raw `/feedback` command). Then `pnpm --filter @fomopred/telegram-bot start`. Members use the Menu next to the message field. Exploitable bugs still go through [SECURITY.md](SECURITY.md), not that channel. With `TWITTER_BEARER_TOKEN` set, the same process copies new original posts from `TWITTER_USERNAME` (default `ngmidotmarkets`) into that group every 15 minutes. The first poll only records the latest id (no history dump). Unset the Bearer to leave sharing off. X credits must be > $0 or those reads fail. With `TWITTERAPI_API_KEY` set, a second 15-minute poll copies new original posts from `TWITTERAPI_CTO_USERNAME` (default `ngmi_cto`) via TwitterAPI.io `GET /twitter/user/last_tweets` (replies, retweets, and quotes skipped). An empty first poll seeds id `0` so the next original is posted, not skipped as history. Unset the TwitterAPI.io key to leave CTO sharing off.
 

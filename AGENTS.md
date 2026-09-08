@@ -24,3 +24,25 @@ Stay on Anchor **0.32** for the first deploy if the workspace already builds. Do
    - Use `pnpm gpa:ngmi-holders` (recommended): `getProgramAccounts` on Token-2022 returns all live token accounts with balances in ~1 second. The qualified list is `data/ngmi-holders-gpa.json`.
    - Use `pnpm snapshot:ngmi-holders` only if you specifically need "ever held" history. It paginates mint signatures and is slow and unreliable on public RPC (many transactions return null).
 7. Mainnet only after the scanner is clean and upgrade authority is not a hot single key.
+
+## Mainnet gates (all must hold before `anchor deploy --provider.cluster mainnet`)
+
+Key separation (admin rotation is two-step `transfer_admin`/`accept_admin` — still initialize with the right key):
+
+- `initialize` with a Squads multisig as `config.admin`. Rotation exists but is two-step; a hot or wrong admin key at init is an incident, not a setting.
+- `set_resolver` immediately after init: resolver = dedicated hot key that can only resolve/cancel. Never the admin, never the deploy wallet.
+- Rake owner = multisig (two-step transfer exists); founder = separate cold key with a live USDC ATA (a closed founder ATA no longer blocks resolve — the slice falls back to the burn treasury — but the slice is then burned, not paid).
+- Upgrade authority = multisig, or frozen after a verified build. Deploy wallet plays no runtime role.
+- Server env carries only the resolver key (`FOMO_SERVER_KEYPAIR`); no `~/.config/solana/id.json` fallback outside devnet.
+
+Verification:
+
+- Verifiable build (`solana-verify`) published and reproducible by a stranger; `[programs.mainnet]` in `Anchor.toml`.
+- `anchor test` and the six-pattern scan run in CI on every PR, not just locally.
+- The pre-mainnet audit's go/no-go checklist is closed (latest report in `docs/audit/`).
+
+Live-service posture:
+
+- Any route that signs with the server key, writes a store the settle path reads, or posts to X is authenticated and rate-limited (see `.cursor/rules/off-chain-privileged-routes.mdc`).
+- Faucet and demo routes are env-gated and verified off in production; `ADMIN_TOKEN` is set.
+- Never `solana program close` — on any cluster. Redeploys upgrade in place onto the same id.

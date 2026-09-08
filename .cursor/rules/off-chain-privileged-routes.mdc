@@ -1,0 +1,43 @@
+# Off-chain privileged routes
+
+The tote's Next.js server holds keys and feeds settlement. Treat routes as
+privileged by default, not by obscurity.
+
+## A route is privileged if any of these hold
+
+1. It signs or sends a transaction with the server key (`server-signer.ts`).
+2. It writes a store the settle path reads (`fomo-traders.ts` venue/handle
+   map, board caches, anything `settle-due.ts` or `decideFromBoard` consumes).
+3. It posts to X / touches X credentials (`announce`, `oauth/x/status`).
+
+Every privileged route must be **authenticated** (admin token, header-only —
+never a query string, which lands in access logs) and **rate-limited**.
+"Tokens exist on disk" is not authentication. Read-only routes that merely
+trigger privileged work (e.g. a public GET that starts settlement) count as
+privileged.
+
+## Data entering the settle path
+
+- External numbers are finite-checked at ingestion, before `usdToMicro`
+  (`BigInt(NaN/Infinity)` throws). One bad upstream row must skip one pot,
+  never abort the whole settle run — per-item try/catch around planning, not
+  just around transactions.
+- Oracle timestamps win over local ones: use the oracle's `capturedAt` for
+  settle gates; a local `printedAt`/`Date.now()` is a freshness hint only.
+- Fields that select *how* a market is judged (venue, handle, identity) are
+  derived server-side from oracle data or bound on-chain — never accepted
+  from client writes.
+
+## Server key hygiene
+
+- Production refuses to boot without an explicit server keypair env var; the
+  Solana CLI `id.json` fallback is dev-only.
+- At boot, assert the signer address equals `config.resolver` and nothing
+  else (not admin, not mint authority).
+
+## Deployment config
+
+- `DEMO_MODE`, faucet, and cluster selection are env-driven and default-deny:
+  production boots with them off unless explicitly enabled for devnet.
+- Verify the live env after every deploy: `ADMIN_TOKEN` set, `DEMO_MODE`
+  unset, server keypair set to the dedicated resolver key.

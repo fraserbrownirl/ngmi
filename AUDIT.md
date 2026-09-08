@@ -2,7 +2,7 @@
 
 This is **not** an EVM or Solidity codebase. The pot is an Anchor 0.32 program on Solana. Submit this file plus the GitHub URL as the engagement description.
 
-Program id (localnet / devnet): `pjfBomyM7swYJ9SuirxQWYqJfzfftSxYjhbGnpPsL2j`
+Program id (localnet / devnet): `CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM`
 
 Source: [`programs/fomo-pnl/src/lib.rs`](programs/fomo-pnl/src/lib.rs)
 
@@ -20,7 +20,7 @@ The program **does not** call FomoScan. A trusted `config.resolver` posts `end_p
 
 | Role | Stored on | Can |
 |---|---|---|
-| `config.admin` | Config PDA | pause / unpause, `update_config`, `set_resolver`, `init_rake` |
+| `config.admin` | Config PDA | pause / unpause, `update_config`, `set_resolver`, `init_rake`, two-step `transfer_admin` |
 | `config.resolver` | Config PDA | `resolve_market`, `cancel_market` (after T) |
 | rake `owner` | Rake PDA | `set_rake`, two-step `transfer_rake_owner` |
 | rake `founder` | Rake PDA | receive founder slice; `set_founder` (founder-signed) |
@@ -29,7 +29,7 @@ Resolver is a **trusted oracle**. A compromised resolver can post a false `end_p
 
 ## Instructions
 
-`initialize`, `create_market`, `place_bet`, `resolve_market`, `cancel_market`, `claim_winnings`, `pause` / `unpause`, `update_config`, `set_resolver`, `init_rake`, `set_rake`, `transfer_rake_owner` / `accept_rake_owner`, `set_founder`.
+`initialize`, `create_market`, `place_bet`, `resolve_market`, `cancel_market`, `claim_winnings`, `pause` / `unpause`, `update_config`, `set_resolver`, `transfer_admin` / `accept_admin`, `init_rake`, `set_rake`, `transfer_rake_owner` / `accept_rake_owner`, `set_founder`.
 
 Settlement math: [`programs/fomo-pnl/src/settle.rs`](programs/fomo-pnl/src/settle.rs). Rake is snapshotted onto the market at create; later `set_rake` does not rewrite open pots.
 
@@ -45,7 +45,8 @@ anchor test
 
 - PDA seeds and vault authority on create / bet / resolve / claim
 - Resolver spoofing and whether anyone else can finalize
-- `UncheckedAccount` founder/creator ATAs in [`resolve_market.rs`](programs/fomo-pnl/src/instructions/resolve_market.rs) (handler re-checks mint + owner)
+- `UncheckedAccount` founder/creator ATAs in [`resolve_market.rs`](programs/fomo-pnl/src/instructions/resolve_market.rs): checked only when the slice is non-zero; an unpayable slice falls back to the burn treasury instead of blocking resolution
+- `captured_at` bounded to `[created_at, now + 300s]` on resolve
 - Pause / cancel griefing; first-print vs close-at-T timing
 - Rake bps validation and floor-split leftovers
-- Leftovers listed in [`docs/UPSTREAM.md`](docs/UPSTREAM.md) (`InvalidAdmin` on claim owner, unused `max_fee_bps`)
+- Leftovers listed in [`docs/UPSTREAM.md`](docs/UPSTREAM.md)

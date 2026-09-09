@@ -19,6 +19,7 @@ unicode-segmentation = "=1.12.0"
 overflow-checks = true
 lto = "fat"
 codegen-units = 1
+opt-level = "z"
 [profile.release.build-override]
 opt-level = 3
 incremental = false

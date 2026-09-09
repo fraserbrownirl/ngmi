@@ -14,6 +14,7 @@ import {
   fomoUserIdToBytes,
   bytesToFomoUserId,
   rakeAmount,
+  retryableText,
   sendWithRetry,
   usdToMicro,
   validateRake,
@@ -129,5 +130,27 @@ describe("sendWithRetry", () => {
       ),
     ).rejects.toThrow("429");
     expect(calls).toBe(3);
+  });
+
+  it("retries when 429 is nested in cause or RPC context", async () => {
+    let calls = 0;
+    const out = await sendWithRetry(
+      async () => {
+        calls += 1;
+        if (calls === 1) {
+          const err = new Error("RPC failed");
+          err.cause = new Error("upstream");
+          (err.cause as Error & { context?: { statusCode: number } }).context = { statusCode: 429 };
+          throw err;
+        }
+        return "ok";
+      },
+      { backoffMs: 1 },
+    );
+    expect(out).toBe("ok");
+    expect(calls).toBe(2);
+    expect(retryableText(Object.assign(new Error("RPC failed"), { context: { statusCode: 429 } }))).toMatch(
+      /429/,
+    );
   });
 });

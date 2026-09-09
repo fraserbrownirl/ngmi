@@ -129,9 +129,38 @@ export function winnerPayoutAfterRake(
 }
 
 /** Default match for public-RPC throttling and flaky websocket confirms. */
-export const RETRYABLE_TX = /429|Too Many Requests|WebSocket/i;
+export const RETRYABLE_TX = /429|Too Many Requests|rate.?limit|503|ECONNRESET|WebSocket/i;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Flatten Error.cause / RPC context so a nested 429 still matches. */
+export function retryableText(e: unknown): string {
+  const chunks: string[] = [];
+  const walk = (v: unknown, depth: number) => {
+    if (v == null || depth > 5) return;
+    if (typeof v === "string" || typeof v === "number") {
+      chunks.push(String(v));
+      return;
+    }
+    if (v instanceof Error) {
+      chunks.push(v.name, v.message);
+      walk(v.cause, depth + 1);
+      const extra = v as Error & { context?: unknown; statusCode?: unknown; code?: unknown };
+      walk(extra.context, depth + 1);
+      walk(extra.statusCode, depth + 1);
+      walk(extra.code, depth + 1);
+      return;
+    }
+    if (typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      for (const k of ["message", "code", "statusCode", "status", "error", "cause", "context"]) {
+        if (k in o) walk(o[k], depth + 1);
+      }
+    }
+  };
+  walk(e, 0);
+  return chunks.join(" ");
+}
 
 /**
  * Send a transaction (or any RPC-bound thunk) with backoff on throttling.
@@ -148,8 +177,7 @@ export async function sendWithRetry<T>(
     try {
       return await fn();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (!retryOn.test(msg) || i === attempts - 1) throw e;
+      if (!retryOn.test(retryableText(e)) || i === attempts - 1) throw e;
       await sleep(backoffMs);
     }
   }

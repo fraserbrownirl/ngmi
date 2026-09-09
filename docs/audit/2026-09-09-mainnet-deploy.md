@@ -50,15 +50,17 @@ nothing else was affected.
 
 Squads mode: the vault signs `initialize`, `init_rake`, `set_resolver`.
 
-- Admin / rake owner / burn treasury / fee recipient: Squads vault
-  `7QcfCZ8kBK46q9H2eJYx4dB26CuWEJwRtZ2Pyf5sAqpZ`
+- Admin / rake owner / burn treasury / fee recipient: Squads v4 vault
+  `GMF3Qhhs2u8tgHChx1H2rFPGdYSgen6c3abnHJwrNdrD` (settings account
+  `AsYgd8T3d4e6RVci6Z7ka34ukqJMABtiRHe6wDBceLMY`; 1-of-1, member
+  `7QcfCZ8kBK46q9H2eJYx4dB26CuWEJwRtZ2Pyf5sAqpZ`)
 - Founder (50 bps slice): `9eX1dkDL6iSyeDvYjZVz4b4sx9kDjK9CNbbXrtkp2LqJ`
   (USDC ATA `8pYHqtBepZPHxDmqUzug5FfiS6119G7cGEaUrk424hyj` exists)
 - Resolver (dedicated hot key, resolve/cancel only):
   `4yWsk3gkSbJa5zdQnndDDGmMB2DPH8U5uJrRqosGhviR`
 - Agent treasury owner (distinct from burn owner — one owner, one ATA per mint):
   `5ZLrvgKmGA7PJKyHNMQUSdGfX9D3VVZqsuAvkSENJRdW`
-- Burn treasury ATA `HPG3Yz9TKg8kfMQaomQxpWPrRadsj7AzikfJE7RmuY1y`, agent
+- Burn treasury ATA `GSCewJPcsXJNmacK8QmYVAAQoScdczZGXwRXqvhVo9g9`, agent
   treasury ATA `Ci3vAYB8VugaZMUefyiZxxtrWkAobqU9k5oXRoFzor31` (both created)
 - Token mint: mainnet USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`
 

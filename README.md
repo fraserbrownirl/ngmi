@@ -85,6 +85,16 @@ cargo test -p fomo_pnl settle
 # anchor test    # full Solana lifecycle (needs Anchor CLI)
 ```
 
+### Mainnet
+
+Program id (mainnet-beta): `CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM` — ProgramData `HcnPCQtUDNSJahRVmv1pJ5h29Ep9sKVXLtoYr1tSRcWZ`, current bytecode deployed in slot 445592588 (signature `3FY7UyP5T9WTdsWD56ZAL3Kkf7BFyRj6dxMDvVHZmUFdpDJFsdtJ7AWPxTS4p3e9YDzDVQYNUdCzK3v7p6y35B1c`). Reproduce the deployed binary from this tree (needs Docker):
+
+```bash
+anchor verify -p fomo-pnl CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM --provider.cluster <mainnet RPC>
+```
+
+Upgrade authority is the deploy wallet pending the post-testing handoff (multisig or freeze); track it with `solana program show CnJCzEEpfxtDWex5rA5c1H5A5YZQPqSG2LjnhxwRLMQM`.
+
 Product changes vs the parent pot:
 
 ```bash

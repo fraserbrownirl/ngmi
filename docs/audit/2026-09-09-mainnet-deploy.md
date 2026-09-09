@@ -15,6 +15,8 @@
 - Upgrade authority: deploy wallet `FMMktQmbEQwc8yZnnTWxahy1QY7YhGzRDJnztprJwvZY`,
   **pending handoff** (Squads multisig or freeze) after mainnet testing
   completes. Until then the deploy key can upgrade or freeze the program.
+- On-chain IDL published at `DcwRLXVLjqhoek9uwFShSkgymCqnQdpYX1hsbLZQUmJw`
+  (authority: deploy wallet) so explorers and multisig UIs decode instructions.
 
 ## Verification chain (all reproducible)
 

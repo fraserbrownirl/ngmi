@@ -47,6 +47,10 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `FOMOSCAN_API_KEY_3` | no | Paid / extra live board key |
 | `FOMO_SERVER_KEYPAIR` | no locally | JSON byte array; else `~/.config/solana/id.json` |
 | `SOLANA_RPC_URL` | no | Scripts; defaults to public devnet |
+| `MAINNET_ADMIN` / `MAINNET_FOUNDER` / `MAINNET_RESOLVER` | mainnet init | Role pubkeys for `pnpm mainnet:init`: Squads vault admin, founder cold key, resolver hot key |
+| `MAINNET_AGENT_TREASURY_OWNER` | mainnet init | Agent treasury owner (dedicated ops key); must differ from the burn treasury owner — one owner has exactly one ATA per mint |
+| `MAINNET_RAKE_OWNER` / `MAINNET_BURN_TREASURY_OWNER` / `MAINNET_FEE_RECIPIENT` / `MAINNET_MODE` | no | Mainnet init overrides; owners default to the vault, mode defaults to `squads` (emit payloads only) |
+| `MAINNET_ACK` | mainnet init | Must be `YES`; acknowledgment gate for mainnet init |
 | `TWITTERAPI_API_KEY` | no | TwitterAPI.io key; platform events post to `@ngmi_cto` and new originals copy into the group |
 | `TWITTERAPI_PROXY` | yes (CTO posts) | Sticky Webshare URL; same proxy on login and every v2 write |
 | `WEBSHARE_API_KEY` | no | Webshare dashboard token for the CTO proxy account (list/manage proxies) |

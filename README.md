@@ -45,6 +45,7 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `FOMOSCAN_API_KEY` | yes (board client) | FomoScan bearer token |
 | `FOMOSCAN_API_KEY_2` | no | Spare key for a one-shot cache seed |
 | `FOMOSCAN_API_KEY_3` | no | Paid / extra live board key |
+| `FOMOSCAN_API_KEY_4` | no | Newer paid live board key; tried before key 3 |
 | `FOMO_SERVER_KEYPAIR` | no locally | JSON byte array; else `~/.config/solana/id.json` |
 | `SOLANA_RPC_URL` | no | Scripts; defaults to public devnet |
 | `MAINNET_ADMIN` / `MAINNET_FOUNDER` / `MAINNET_RESOLVER` | mainnet init | Role pubkeys for `pnpm mainnet:init`: Squads vault admin, founder cold key, resolver hot key |

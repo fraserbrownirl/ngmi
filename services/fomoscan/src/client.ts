@@ -147,6 +147,28 @@ export function extraApiKey(env: NodeJS.ProcessEnv = process.env): string | null
   return key || null;
 }
 
+/** Optional fourth live key (paid board). Tried before key 3. Never required. */
+export function extra4ApiKey(env: NodeJS.ProcessEnv = process.env): string | null {
+  const key = env.FOMOSCAN_API_KEY_4?.trim();
+  return key || null;
+}
+
+/**
+ * Live board keys, newest paid first. Spare (`FOMOSCAN_API_KEY_2`) is not
+ * included — that key is a one-shot seed only.
+ */
+export function liveApiKeys(env: NodeJS.ProcessEnv = process.env): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [env.FOMOSCAN_API_KEY_4, env.FOMOSCAN_API_KEY_3, env.FOMOSCAN_API_KEY]) {
+    const key = raw?.trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
 export function createFomoScan(apiKey = requireApiKey()) {
   async function request<T>(path: string): Promise<T> {
     const res = await fetch(`${BASE}${path}`, {

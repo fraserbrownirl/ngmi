@@ -4,6 +4,8 @@ import {
   requireApiKey,
   spareApiKey,
   extraApiKey,
+  extra4ApiKey,
+  liveApiKeys,
   normalizeBoard,
   normalizePumpBoard,
   normalizeMe,
@@ -43,6 +45,39 @@ describe("extraApiKey", () => {
 
   it("returns trimmed third key", () => {
     expect(extraApiKey({ FOMOSCAN_API_KEY_3: "  paid  " })).toBe("paid");
+  });
+});
+
+describe("extra4ApiKey", () => {
+  it("is optional", () => {
+    expect(extra4ApiKey({})).toBeNull();
+  });
+
+  it("returns trimmed fourth key", () => {
+    expect(extra4ApiKey({ FOMOSCAN_API_KEY_4: "  paid4  " })).toBe("paid4");
+  });
+});
+
+describe("liveApiKeys", () => {
+  it("is empty without live keys", () => {
+    expect(liveApiKeys({})).toEqual([]);
+  });
+
+  it("orders fourth, then third, then primary, skipping spare and dupes", () => {
+    expect(
+      liveApiKeys({
+        FOMOSCAN_API_KEY: "primary",
+        FOMOSCAN_API_KEY_2: "spare",
+        FOMOSCAN_API_KEY_3: "third",
+        FOMOSCAN_API_KEY_4: "  fourth  ",
+      }),
+    ).toEqual(["fourth", "third", "primary"]);
+    expect(
+      liveApiKeys({
+        FOMOSCAN_API_KEY: "same",
+        FOMOSCAN_API_KEY_4: "same",
+      }),
+    ).toEqual(["same"]);
   });
 });
 

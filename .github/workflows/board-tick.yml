@@ -2,6 +2,8 @@ name: board-tick
 
 # Hourly FOMO board + settle. Hobby Vercel cron is daily-only, so this is the
 # cadence. Secret is CRON_SECRET (same value as Vercel). Never a FomoScan key.
+# GitHub registers the schedule on each push of this file to the default
+# branch — if hourly runs ever stop appearing, touch this comment and push.
 on:
   schedule:
     - cron: "0 * * * *"

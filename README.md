@@ -85,6 +85,9 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `SIM_BET_FRACTION_MIN` / `SIM_BET_FRACTION_MAX` | no | Bankroll fraction per bet, 0.04–0.12 |
 | `SIM_MAX_MARKET_EXPOSURE_USDC` | no | Per-agent per-market exposure cap, $2 |
 | `SIM_CONVICTION_JITTER` | no | Max per-agent probability offset, 0.12 — agents disagree enough to trade each other |
+| `SIM_MARKET_MAKER` | no | Agent allowed to create markets when none are active; default `agent-1`, empty disables |
+| `SIM_MARK_MARKUP_PCT` / `SIM_MARKET_TTL_SEC` | no | Maker mark = board PnL × (1 + 0.03) off a fresh print; pot lifetime 2700s, first-print settle |
+| `SIM_MAX_ACTIVE_MARKETS` | no | Maker creates only below this many active pots, 1 |
 | `SIM_FUND_USDC` / `SIM_FUND_SOL` | no | `pnpm sim:fund` top-up targets, $10 / 0.05 SOL |
 | `SIM_DATA_DIR` | no | Decision log dir; default `services/sim/data` (gitignored) |
 

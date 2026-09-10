@@ -1,10 +1,27 @@
 # @fomopred/sim
 
 Autonomous trading agents for the pot. Each agent has its own wallet (USDC +
-SOL) and **only trades existing markets** — `place_bet` and `claim_winnings`,
-never `create_market`, never resolve. Resolution stays with the production
-keeper: agents read the same FomoScan `window=all` board the keeper settles
-from, so their edge estimates price the exact data that decides outcomes.
+SOL) and trades existing markets — `place_bet` and `claim_winnings`, never
+resolve. One designated maker (default `agent-1`) also creates a market when
+none are active, so the fleet always has a book to trade. Resolution stays
+with the production keeper: agents read the same FomoScan `window=all` board
+the keeper settles from, so their edge estimates price the exact data that
+decides outcomes.
+
+## Market-making
+
+When fewer than `SIM_MAX_ACTIVE_MARKETS` (default 1) markets are active, the
+maker (`SIM_MARKET_MAKER`) plans one pot per wake and returns without betting:
+
+- Trader: a real top-25 board trader with PnL ≥ $100 who has no active pot,
+  rotating deterministically by next market id.
+- Mark: current board PnL × (1 + `SIM_MARK_MARKUP_PCT`, default 3%), priced
+  off a **freshly forced** board print — a stale print lets a fast trader
+  cross the mark before creation confirms, and a market that opens already
+  over its mark is a foregone dud nobody can bet on.
+- Term: `SIM_MARKET_TTL_SEC` (default 45 min), first-print settle — the next
+  hourly keeper tick over the mark resolves YES, otherwise the tick after T
+  resolves on the then-current print. Either way the pot settles soon.
 
 ## Policy
 
@@ -60,7 +77,7 @@ pnpm sim:report               # balances, open exposure, claimable, lifetime sta
 
 Mainnet sends require `CLUSTER=mainnet MAINNET_ACK=YES` (same gate as the
 smoke). Agent keypairs live outside the repo and only ever sign
-`place_bet` / `claim_winnings`.
+`place_bet` / `claim_winnings` (plus `create_market` on the maker).
 
 ## Env
 

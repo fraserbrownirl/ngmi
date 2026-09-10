@@ -7,7 +7,7 @@ export type DecisionEntry = {
   agent: string;
   cluster: string;
   marketId: number;
-  action: "bet" | "abstain" | "claim";
+  action: "bet" | "abstain" | "claim" | "create";
   reason?: string;
   side?: "yes" | "no";
   amountUsdc?: number;
@@ -16,6 +16,9 @@ export type DecisionEntry = {
   edge?: number;
   rationale?: string;
   payoutUsdc?: number;
+  /** Market-creation details (action === "create"). */
+  traderHandle?: string;
+  markUsd?: number;
   /** Tx signature; null in dry-run. */
   sig?: string | null;
   dryRun: boolean;

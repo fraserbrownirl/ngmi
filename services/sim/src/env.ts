@@ -32,6 +32,14 @@ export type SimConfig = {
   maxMarketExposureUsdc: number;
   /** Max deterministic per-agent probability offset (agents disagree). */
   convictionJitter: number;
+  /** Agent name allowed to create markets (empty = creation disabled). */
+  marketMaker: string;
+  /** Mark = current board PnL * (1 + markup). Small so pots resolve soon. */
+  markMarkupPct: number;
+  /** Market lifetime, seconds (also the close-at-T fallback). */
+  marketTtlSec: number;
+  /** Only create when fewer than this many markets are active. */
+  maxActiveMarkets: number;
   /** pnpm sim:fund defaults. */
   fundUsdc: number;
   fundSol: number;
@@ -90,6 +98,10 @@ export function simConfig(
     betFractionMax: num(env, "SIM_BET_FRACTION_MAX", 0.12),
     maxMarketExposureUsdc: num(env, "SIM_MAX_MARKET_EXPOSURE_USDC", 2),
     convictionJitter: num(env, "SIM_CONVICTION_JITTER", 0.12),
+    marketMaker: env.SIM_MARKET_MAKER?.trim() ?? "agent-1",
+    markMarkupPct: num(env, "SIM_MARK_MARKUP_PCT", 0.03),
+    marketTtlSec: num(env, "SIM_MARKET_TTL_SEC", 2700),
+    maxActiveMarkets: num(env, "SIM_MAX_ACTIVE_MARKETS", 1),
     fundUsdc: num(env, "SIM_FUND_USDC", 10),
     fundSol: num(env, "SIM_FUND_SOL", 0.05),
     dataDir: env.SIM_DATA_DIR?.trim() || path.join(process.cwd(), "data"),

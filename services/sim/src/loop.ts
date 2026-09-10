@@ -9,6 +9,7 @@ import { fetchMarkets, activeMarkets, type SimMarket } from "./discover";
 import { BoardCache } from "./board";
 import { evaluate, pickBest, type PolicyKnobs } from "./policy";
 import { findClaimable, claim } from "./claim";
+import { planMarket, createMarket } from "./make";
 import { DecisionLog } from "./log";
 import {
   ensureUsdcAta,
@@ -52,6 +53,8 @@ async function wake(
   rt: AgentRuntime,
   markets: SimMarket[],
   board: import("@fomopred/keeper").BoardPrint | null,
+  rawBoard: import("@fomopred/fomoscan").Leaderboard | null,
+  boards: BoardCache,
   config: SimConfig,
   log: DecisionLog,
 ): Promise<void> {
@@ -111,6 +114,48 @@ async function wake(
     }
   }
 
+  const active = activeMarkets(markets);
+
+  // Market-making: the designated agent opens the next pot when the board
+  // has room, then returns — it can bet on its own pot from the next wake.
+  // Creation needs a funded wallet (rent), so it sits behind the same guards.
+  if (wallet.name === config.marketMaker && active.length < config.maxActiveMarkets) {
+    // Price the mark off a FRESH print: the shared cache can be 10 min old,
+    // and a fast trader crosses a 3% markup in that window — a market that
+    // opens already over its mark is a foregone dud nobody can bet on.
+    const fresh = await boards.getRaw(true);
+    const cfg = await rt.program.account.config.fetch(configPda(rt.program.programId));
+    const plan = planMarket({
+      board: fresh ?? rawBoard,
+      activeCount: active.length,
+      busyTraderIds: new Set(active.map((m) => m.record.fomoUserId)),
+      nextMarketId: cfg.marketCounter.toNumber() + 1,
+      nowSec: Math.floor(Date.now() / 1000),
+      markupPct: config.markMarkupPct,
+      ttlSec: config.marketTtlSec,
+      maxActive: config.maxActiveMarkets,
+    });
+    if (plan) {
+      const { sig, marketId } = await createMarket(rt.program, wallet, plan, config);
+      log.append({
+        ts: now,
+        agent: wallet.name,
+        cluster: config.cluster,
+        marketId,
+        action: "create",
+        rationale: plan.rationale,
+        traderHandle: plan.handle,
+        markUsd: plan.markUsd,
+        sig,
+        dryRun: config.dryRun,
+      });
+      console.log(
+        `[${wallet.name}] create market ${marketId}: ${plan.rationale}${sig ? " " + explorer(config.cluster, sig) : " (dry-run)"}`,
+      );
+      return;
+    }
+  }
+
   const knobs: PolicyKnobs = {
     edgeMargin: config.edgeMargin,
     proximityGuard: config.proximityGuard,
@@ -120,7 +165,6 @@ async function wake(
     betFractionMax: config.betFractionMax,
     maxMarketExposureUsdc: config.maxMarketExposureUsdc,
   };
-  const active = activeMarkets(markets);
 
   // One batched fetch for this agent's positions across the active board:
   // per-market exposure caps need to know what's already staked.
@@ -244,7 +288,8 @@ async function agentLoop(
       const reader = loadProgram(connection);
       const markets = await fetchMarkets(reader);
       const print = await board.get();
-      await wake(rt, markets, print, config, log);
+      const raw = await board.getRaw();
+      await wake(rt, markets, print, raw, board, config, log);
     } catch (e) {
       console.log(`[${wallet.name}] wake failed: ${(e as Error).message}`);
     }

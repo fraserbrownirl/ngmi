@@ -35,9 +35,36 @@ privileged.
 - At boot, assert the signer address equals `config.resolver` and nothing
   else (not admin, not mint authority).
 
+## Metered oracle keys
+
+Paid FomoScan board keys (`FOMOSCAN_API_KEY_3`, `FOMOSCAN_API_KEY_4`, and any
+later live key) are production-only. Do not put them on Preview, Development,
+`vercel env pull`, or the local tote `next dev` process. Local UI work uses
+`DEMO_MODE=1` or a disk cache. GitHub Actions must not receive these secrets
+(tests mock `fetch`). `FOMO_LIVE_BOARD=1` is the explicit local override.
+
+A public GET must not spend metered CU. `GET /api/board` and
+`GET /api/markets/[id]/history` read a durable snapshot (`unstable_cache` +
+disk). They must not call FomoScan, start an in-process interval, or seed
+from the spare key. Live refresh belongs on authenticated `GET /api/keeper/tick`
+(ADMIN_TOKEN or `CRON_SECRET` bearer — not spoofable `x-vercel-cron` alone).
+`CRON_SECRET` must not unlock other admin routes.
+
+Cadence: GitHub Actions hourly (`board-tick.yml`) plus a daily Vercel cron on
+Hobby (hourly cron is a Pro feature). After a tote deploy, one authenticated
+tick seeds the cache; until then the public board is empty. Skip a live pull
+when the print is still fresh (`FRESH_MS` / `PUMP_FRESH_MS`).
+
+`GET /v2/me` is 0 CU. Identity `GET /v2/user/id/{id}` is 2,500 CU — never
+use it to paint the leaderboard.
+
+Starter grant is 250,000 CU / UTC month. Designed cadence (hourly FOMO +
+daily pump) is 187,500 CU. Headroom is ~250 extra board pulls.
+
 ## Deployment config
 
 - `DEMO_MODE`, faucet, and cluster selection are env-driven and default-deny:
   production boots with them off unless explicitly enabled for devnet.
-- Verify the live env after every deploy: `ADMIN_TOKEN` set, `DEMO_MODE`
-  unset, server keypair set to the dedicated resolver key.
+- Verify the live env after every deploy: `ADMIN_TOKEN` set, `CRON_SECRET`
+  set, `DEMO_MODE` unset, server keypair set to the dedicated resolver key,
+  paid FomoScan keys on Production only.

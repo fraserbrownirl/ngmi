@@ -145,14 +145,16 @@ export function evaluate(input: PolicyInput): Decision {
   // but only under genuine uncertainty. A foregone conclusion stays empty:
   // one-sided pools auto-cancel at resolve, so seeding one earns a refund,
   // not a payout. (Breakeven is 1.0 by construction; this is a seeding cost.)
+  // The proximity guard does NOT gate the opener: it exists to stop sized NOs
+  // into a near-certain first-print YES, but the uncertainty band already
+  // excludes foregone books, and near-mark fresh markets (the maker's 3%
+  // marks) sit inside the guard band by construction — gating openers on it
+  // produced permanently empty books.
   if (yesPool === 0 && noPool === 0) {
     if (pYes < 0.2 || pYes > 0.8) {
       return { action: "abstain", reason: "opener_no_uncertainty", pYes };
     }
     const side = pYes >= 0.5 ? "yes" : "no";
-    if (side === "no" && gapRatio < knobs.proximityGuard) {
-      return { action: "abstain", reason: "proximity_guard_no", pYes };
-    }
     if (input.bankrollUsdc < knobs.minBetUsdc) {
       return { action: "abstain", reason: "bankroll_too_small", pYes };
     }

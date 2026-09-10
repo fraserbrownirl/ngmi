@@ -138,6 +138,22 @@ describe("evaluate", () => {
     expect(d).toMatchObject({ action: "abstain", reason: "proximity_guard_no" });
   });
 
+  it("opens an empty book NO near the mark under uncertainty (guard exempts openers)", () => {
+    // The maker's fresh 3% marks sit inside the guard band by construction;
+    // gating openers on it left every fresh book permanently empty.
+    const d = evaluate(
+      input({
+        record: record({ yesPool: 0n, noPool: 0n }),
+        board: board([{ id: "trader-1", pnl: 485 }]), // gap ratio 0.03
+      }),
+    );
+    expect(d.action).toBe("bet");
+    if (d.action === "bet") {
+      expect(d.side).toBe("no"); // pYes just under 0.5 favors NO
+      expect(d.amountUsdc).toBe(0.25);
+    }
+  });
+
   it("allows NO far below the mark when the edge clears the margin", () => {
     const d = evaluate(
       input({

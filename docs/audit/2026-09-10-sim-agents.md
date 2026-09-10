@@ -49,3 +49,18 @@ policy tests cover the decision surface.
 Agent bets are real mainnet activity, visible on the tote and in the keeper's
 bet-announce posts. The sim is in the public repo deliberately: activity
 sourcing stays auditable.
+
+## Dependency advisories (CI `pnpm audit --prod`)
+
+The sim's prod deps pull three high advisories with no patched release,
+ignored in root `package.json` (`pnpm.auditConfig.ignoreGhsas`):
+
+- `GHSA-3gc7-fjrx-p6mg` — `bigint-buffer@1.1.5` via `@solana/spl-token`.
+  Unmaintained; spl-token calls `toBigIntLE` on fixed 8-byte amount buffers,
+  not attacker-controlled lengths.
+- `GHSA-82x6-q7mm-w9cf`, `GHSA-v5mp-jgw5-2x6j` — `toml@3.0.0` via
+  `@coral-xyz/anchor` (pinned 0.32 per deploy rule). Anchor TS parses its own
+  shipped IDL, not untrusted TOML.
+
+Re-check on the Anchor 1.1 migration or if either path starts parsing
+untrusted input.

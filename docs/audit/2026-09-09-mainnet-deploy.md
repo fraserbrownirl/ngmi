@@ -93,7 +93,11 @@ deploy wallet betting both sides of one 90-second market (market 1,
 Full tx prefixes are in the script output; all signatures resolve on
 explorer.solana.com against program `CnJCzE…`.
 
-## Still open at report time
+## Upgrade authority — operator decision 2026-09-10
 
-- Upgrade-authority handoff decision (multisig vs freeze) — testing is done,
-  this is the last gate before the deployment is considered final.
+After the clean smoke run the operator chose to **leave the upgrade authority
+with the deploy wallet** (`FMMktQm…`) for now, rather than transferring it to
+the vault or freezing. This is a deliberate interim posture, not an oversight:
+the deploy wallet is a hot key and can push arbitrary code to the program that
+custodies user funds, so this must be revisited before the beta label comes
+off. The AGENTS.md mainnet gate (multisig or frozen authority) remains open.

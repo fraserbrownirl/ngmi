@@ -77,7 +77,23 @@ Post-execution on-chain state, fetched and decoded:
 - `rake.owner` = vault, `founder` = `9eX1d…`, splits 500/300/100/50,
   burn/agent treasuries as staged above.
 
+## Smoke market — executed 2026-09-10
+
+`MAINNET_ACK=YES pnpm smoke:mainnet` (scripts/cluster-smoke.ts), real USDC,
+deploy wallet betting both sides of one 90-second market (market 1,
+`Btuwk5y4Ergrd7szLJmhepogKNvMJLZgdcjouSDkU1VD`):
+
+- create_market `3125hmKq…`, YES $0.50 `564SVFVS…`, NO $0.50 `4NWaj9jh…`
+- resolve_market signed by the resolver hot key (not the admin):
+  `5diqqhQu8oPrtMc1urpvTLZZQYSbhZxkMHrd4vvwbuAq6RPer8y78u9C9g9K8Sxucxin2obM5FQVX6BLxYuMhrJ4`
+- rake slices asserted on-chain: founder 2,500 / burn 15,000 / agent 5,000
+  (USDC base units; 5% of the $0.50 losing book, split per 500/300/100/50)
+- claim_winnings `22rTu8yf…` paid the winning side
+
+Full tx prefixes are in the script output; all signatures resolve on
+explorer.solana.com against program `CnJCzE…`.
+
 ## Still open at report time
 
-- Mainnet smoke market (tiny real USDC) before any authority handoff.
-- Upgrade-authority handoff decision (multisig vs freeze) after testing.
+- Upgrade-authority handoff decision (multisig vs freeze) — testing is done,
+  this is the last gate before the deployment is considered final.

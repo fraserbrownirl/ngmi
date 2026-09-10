@@ -50,6 +50,8 @@ import {
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
 import { FomoPnl } from "../target/types/fomo_pnl";
+// @ts-ignore - bs58 ships no types; transitive dep of anchor
+import bs58 from "bs58";
 import {
   DEFAULT_AGENT_BPS,
   DEFAULT_BURN_BPS,
@@ -326,6 +328,8 @@ async function mainnetInit(
   }
 
   if (mode === "squads") {
+    const ixs: TransactionInstruction[] = [];
+    const names: string[] = [];
     if (!configExists) {
       const ix = await program.methods
         .initialize(feeRecipient)
@@ -335,6 +339,8 @@ async function mainnetInit(
         })
         .instruction();
       await printSquadsPayload(provider.connection, "initialize", admin, ix);
+      ixs.push(ix);
+      names.push("initialize");
     }
     if (!rakeExists) {
       const ix = await program.methods
@@ -354,19 +360,39 @@ async function mainnetInit(
         })
         .instruction();
       await printSquadsPayload(provider.connection, "init_rake", admin, ix);
+      ixs.push(ix);
+      names.push("init_rake");
     }
+    let needResolver = true;
     if (configExists) {
       const cfg = await program.account.config.fetch(configPda);
-      if (cfg.resolver.equals(resolver)) {
-        console.log("\nresolver already set to target; nothing to emit.");
-        return;
-      }
+      needResolver = !cfg.resolver.equals(resolver);
     }
-    const ix = await program.methods
-      .setResolver(resolver)
-      .accounts({ admin })
-      .instruction();
-    await printSquadsPayload(provider.connection, "set_resolver", admin, ix);
+    if (needResolver) {
+      const ix = await program.methods
+        .setResolver(resolver)
+        .accounts({ admin })
+        .instruction();
+      await printSquadsPayload(provider.connection, "set_resolver", admin, ix);
+      ixs.push(ix);
+      names.push("set_resolver");
+    }
+    if (ixs.length === 0) {
+      console.log("\nalready initialized with target resolver; nothing to emit.");
+      return;
+    }
+    // One combined transaction for the Squads TX Builder "Import base58
+    // encoded tx" path: decodes into all instructions in a single draft.
+    const { blockhash } = await provider.connection.getLatestBlockhash("confirmed");
+    const combined = new Transaction({ feePayer: admin, recentBlockhash: blockhash });
+    combined.add(...ixs);
+    const raw = combined.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+    console.log("\n=== SQUADS IMPORT (one transaction, all instructions) ===");
+    console.log("instructions:", names.join(" + "));
+    console.log("base58:", bs58.encode(raw));
     return;
   }
 

@@ -97,6 +97,34 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.1)(tsx@4.23.13)
 
+  services/sim:
+    dependencies:
+      '@coral-xyz/anchor':
+        specifier: ^0.32.1
+        version: 0.32.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@fomopred/fomoscan':
+        specifier: workspace:*
+        version: link:../fomoscan
+      '@fomopred/keeper':
+        specifier: workspace:*
+        version: link:../keeper
+      '@fomopred/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@solana/spl-token':
+        specifier: ^0.4.14
+        version: 0.4.15(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@solana/web3.js':
+        specifier: ^1.98.4
+        version: 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+    devDependencies:
+      tsx:
+        specifier: ^4.20.5
+        version: 4.23.13
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.1)(tsx@4.23.13)
+
   services/telegram-bot:
     dependencies:
       grammy:

@@ -87,21 +87,28 @@ async function wake(
     }
   }
 
-  const sol = await solBalance(rt.program.provider.connection, wallet.keypair.publicKey);
-  if (sol < config.solFloor) {
-    console.log(`[${wallet.name}] SOL ${sol.toFixed(4)} below floor ${config.solFloor} — skipping bets`);
-    return;
-  }
-  const bankroll = await usdcBalance(rt.program.provider.connection, rt.ata);
-  if (bankroll <= config.bankrollFloorUsdc) {
-    console.log(`[${wallet.name}] bankroll $${bankroll.toFixed(2)} at/below floor — skipping bets`);
-    return;
-  }
-  const spent = log.spentLast24h(wallet.name);
-  const spendLeft = config.dailySpendUsdc - spent;
-  if (spendLeft < config.minBetUsdc) {
-    console.log(`[${wallet.name}] 24h spend cap reached ($${spent.toFixed(2)}) — skipping bets`);
-    return;
+  // Funding guards are about wallet state, not decision quality — dry-run
+  // skips them and evaluates with a nominal bankroll so decisions are
+  // observable before any wallet is funded.
+  let bankroll = config.fundUsdc;
+  let spendLeft = config.dailySpendUsdc;
+  if (!config.dryRun) {
+    const sol = await solBalance(rt.program.provider.connection, wallet.keypair.publicKey);
+    if (sol < config.solFloor) {
+      console.log(`[${wallet.name}] SOL ${sol.toFixed(4)} below floor ${config.solFloor} — skipping bets`);
+      return;
+    }
+    bankroll = await usdcBalance(rt.program.provider.connection, rt.ata);
+    if (bankroll <= config.bankrollFloorUsdc) {
+      console.log(`[${wallet.name}] bankroll $${bankroll.toFixed(2)} at/below floor — skipping bets`);
+      return;
+    }
+    const spent = log.spentLast24h(wallet.name);
+    spendLeft = config.dailySpendUsdc - spent;
+    if (spendLeft < config.minBetUsdc) {
+      console.log(`[${wallet.name}] 24h spend cap reached ($${spent.toFixed(2)}) — skipping bets`);
+      return;
+    }
   }
 
   const knobs: PolicyKnobs = {

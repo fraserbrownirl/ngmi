@@ -64,8 +64,20 @@ Squads mode: the vault signs `initialize`, `init_rake`, `set_resolver`.
   treasury ATA `Ci3vAYB8VugaZMUefyiZxxtrWkAobqU9k5oXRoFzor31` (both created)
 - Token mint: mainnet USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`
 
+## Initialization — executed 2026-09-10
+
+The vault executed `initialize` + `init_rake` + `set_resolver` as one Squads
+transaction (config creation signature
+`4DbLkDwG2wGyD1F3yjNfS5m8emLZitL6PjJx5kwHcg3PkqXFQPmrwVMxYRZWwNy1PodN76NrixGQN1WrwjZQuhL4`).
+Post-execution on-chain state, fetched and decoded:
+
+- `config.admin` = vault, `config.resolver` = `4yWsk3…`, `pendingAdmin` = none,
+  `feeRecipient` = vault, `tokenMint` = mainnet USDC, `marketCounter` = 0,
+  `paused` = false.
+- `rake.owner` = vault, `founder` = `9eX1d…`, splits 500/300/100/50,
+  burn/agent treasuries as staged above.
+
 ## Still open at report time
 
-- Squads vault executes the three init instructions.
 - Mainnet smoke market (tiny real USDC) before any authority handoff.
 - Upgrade-authority handoff decision (multisig vs freeze) after testing.

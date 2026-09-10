@@ -83,6 +83,8 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `SIM_EDGE_MARGIN` | no | Required probability edge over pool breakeven, 0.02 |
 | `SIM_PROXIMITY_GUARD` | no | Gap ratio below which NO bets are suppressed, 0.2 |
 | `SIM_BET_FRACTION_MIN` / `SIM_BET_FRACTION_MAX` | no | Bankroll fraction per bet, 0.04–0.12 |
+| `SIM_MAX_MARKET_EXPOSURE_USDC` | no | Per-agent per-market exposure cap, $2 |
+| `SIM_CONVICTION_JITTER` | no | Max per-agent probability offset, 0.12 — agents disagree enough to trade each other |
 | `SIM_FUND_USDC` / `SIM_FUND_SOL` | no | `pnpm sim:fund` top-up targets, $10 / 0.05 SOL |
 | `SIM_DATA_DIR` | no | Decision log dir; default `services/sim/data` (gitignored) |
 

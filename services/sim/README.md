@@ -18,15 +18,28 @@ Per active market, per wake (jittered 2–6 min, at most one bet per wake):
    tick: P_yes ≈ 0.99. A market the keeper would cancel (off-board, FomoScan
    down) is skipped.
 3. **Edge vs pool odds** — breakeven probability from the pools including the
-   5% losing-pool rake; a bet needs `|P − breakeven| > SIM_EDGE_MARGIN`.
-4. **Proximity guard** — within `SIM_PROXIMITY_GUARD` of the mark (default
+   5% losing-pool rake, **size-aware**: the bet's own pool impact is priced
+   (`p* = (Y+b) / (Y+b + N(1−r))`), so an oversized bet against a small pool
+   is correctly rejected as betting against itself. A bet needs
+   `P − breakeven > SIM_EDGE_MARGIN`; failures at full size retry at the
+   minimum bet (smaller bets get better pool odds).
+4. **Conviction jitter** — a deterministic per-agent-per-market offset
+   (±`SIM_CONVICTION_JITTER`, default 0.12) shifts each agent's P_yes. Same
+   model, same board, different opinion — the disagreement that makes agents
+   take opposite sides of one book.
+5. **Proximity guard** — within `SIM_PROXIMITY_GUARD` of the mark (default
    20%), NO bets are suppressed: the closer the print gets to the target, the
    less the agents trade against it.
-5. **Cancel trap** — a one-sided pool auto-cancels at resolve (refund, not
-   payout), so the heavy side is never bet.
-6. **Sizing** — 4–12% of the agent's current bankroll, jittered, floored at
-   `SIM_MIN_BET_USDC`, capped at `SIM_MAX_BET_USDC` and the rolling 24h spend
-   cap.
+6. **Book building** — an empty book gets a minimum-size opener on the
+   model's favored side, but only under genuine uncertainty (0.2 < P_yes <
+   0.8); foregone conclusions stay empty since one-sided pools auto-cancel at
+   resolve. A one-sided book can only be opposed (the whole pool is the
+   prize), never piled into. A dominant two-sided book (>75%) allows a
+   min-size pile-in under uncertainty — depth that makes opposition
+   attractive.
+7. **Sizing** — 4–12% of the agent's current bankroll, jittered, floored at
+   `SIM_MIN_BET_USDC`, capped at `SIM_MAX_BET_USDC`, the rolling 24h spend
+   cap, and `SIM_MAX_MARKET_EXPOSURE_USDC` per market.
 
 Every evaluation is appended to `data/decisions.jsonl` (gitignored) with the
 inputs, edge, side, amount, rationale, and tx signature — the agents'

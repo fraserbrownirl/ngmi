@@ -24,6 +24,20 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const explorer = (cluster: string, sig: string) =>
   `https://explorer.solana.com/tx/${sig}${cluster === "mainnet" ? "" : "?cluster=devnet"}`;
 
+/**
+ * Deterministic per-agent-per-market conviction offset in [-max, +max].
+ * Same model, same board, different opinion — the disagreement that makes
+ * agents take opposite sides of a book.
+ */
+export function convictionJitter(agent: string, marketId: number, max: number): number {
+  const s = `${agent}:${marketId}`;
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return ((h % 1000) / 1000) * 2 * max - max;
+}
+
 type AgentRuntime = {
   wallet: AgentWallet;
   program: Program<FomoPnl>;
@@ -44,8 +58,17 @@ async function wake(
   const { wallet } = rt;
   const now = new Date().toISOString();
 
+  // ATA before everything: claims and bets both need it, and a fresh
+  // process must not skip a claim because the account wasn't derived yet.
+  if (!rt.ata) {
+    const cfg = await rt.program.account.config.fetch(configPda(rt.program.programId));
+    rt.ata = config.dryRun
+      ? await usdcAta(cfg.tokenMint, wallet.keypair.publicKey)
+      : await ensureUsdcAta(rt.program.provider.connection, wallet.keypair, cfg.tokenMint);
+  }
+
   // Claims first: settled positions are free money back into the bankroll.
-  if (rt.ata) {
+  {
     for (const c of await findClaimable(rt.program, markets, wallet.keypair.publicKey)) {
       const sig = await claim(rt.program, wallet, c, rt.ata, config.dryRun);
       log.append({
@@ -69,12 +92,6 @@ async function wake(
     console.log(`[${wallet.name}] SOL ${sol.toFixed(4)} below floor ${config.solFloor} — skipping bets`);
     return;
   }
-  if (!rt.ata) {
-    const cfg = await rt.program.account.config.fetch(configPda(rt.program.programId));
-    rt.ata = config.dryRun
-      ? await usdcAta(cfg.tokenMint, wallet.keypair.publicKey)
-      : await ensureUsdcAta(rt.program.provider.connection, wallet.keypair, cfg.tokenMint);
-  }
   const bankroll = await usdcBalance(rt.program.provider.connection, rt.ata);
   if (bankroll <= config.bankrollFloorUsdc) {
     console.log(`[${wallet.name}] bankroll $${bankroll.toFixed(2)} at/below floor — skipping bets`);
@@ -94,15 +111,31 @@ async function wake(
     maxBetUsdc: Math.min(config.maxBetUsdc, spendLeft),
     betFractionMin: config.betFractionMin,
     betFractionMax: config.betFractionMax,
+    maxMarketExposureUsdc: config.maxMarketExposureUsdc,
   };
   const active = activeMarkets(markets);
-  const evaluated = active.map((m) => ({
+
+  // One batched fetch for this agent's positions across the active board:
+  // per-market exposure caps need to know what's already staked.
+  const positionPdas = active.map((m) =>
+    positionPda(rt.program.programId, m.id, wallet.keypair.publicKey),
+  );
+  const positions = await rt.program.account.userPosition.fetchMultiple(positionPdas);
+  const exposureOf = (i: number): number => {
+    const p = positions[i];
+    if (!p) return 0;
+    return (Number(p.yesBet.toString()) + Number(p.noBet.toString())) / 1e6;
+  };
+
+  const evaluated = active.map((m, i) => ({
     marketId: m.id,
     input: {
       record: m.record,
       rakeBps: m.rakeBps,
       board,
       bankrollUsdc: bankroll,
+      convictionJitter: convictionJitter(wallet.name, m.id, config.convictionJitter),
+      myExposureUsdc: exposureOf(i),
       knobs,
     },
   }));

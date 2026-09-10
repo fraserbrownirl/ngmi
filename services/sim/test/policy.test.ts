@@ -20,6 +20,7 @@ const KNOBS: PolicyKnobs = {
   maxBetUsdc: 5,
   betFractionMin: 0.04,
   betFractionMax: 0.12,
+  maxMarketExposureUsdc: 2,
 };
 
 const usd = (n: number) => BigInt(Math.round(n * 1e6));
@@ -158,11 +159,39 @@ describe("evaluate", () => {
     expect(d.action).toBe("abstain");
   });
 
-  it("abstains on empty pools", () => {
+  it("opens an empty book small under genuine uncertainty", () => {
+    // pnl 400 vs k 500: P_yes ~0.33 — model favors NO, opens at min bet.
+    const d = evaluate(
+      input({
+        record: record({ yesPool: 0n, noPool: 0n }),
+        board: board([{ id: "trader-1", pnl: 400 }]),
+      }),
+    );
+    expect(d.action).toBe("bet");
+    if (d.action === "bet") {
+      expect(d.side).toBe("no");
+      expect(d.amountUsdc).toBe(KNOBS.minBetUsdc);
+      expect(d.rationale).toContain("opener");
+    }
+  });
+
+  it("opens YES when the model leans YES", () => {
+    const d = evaluate(
+      input({
+        record: record({ yesPool: 0n, noPool: 0n }),
+        board: board([{ id: "trader-1", pnl: 520 }]),
+      }),
+    );
+    expect(d.action).toBe("bet");
+    if (d.action === "bet") expect(d.side).toBe("yes");
+  });
+
+  it("leaves a foregone-conclusion empty book alone", () => {
+    // pnl 100 vs k 500: P_yes ~0.05 — no opener, one-sided risk not worth it.
     const d = evaluate(
       input({ record: record({ yesPool: 0n, noPool: 0n }) }),
     );
-    expect(d).toMatchObject({ action: "abstain", reason: "empty_pools" });
+    expect(d).toMatchObject({ action: "abstain", reason: "opener_no_uncertainty" });
   });
 
   it("abstains when neither side clears the margin", () => {
@@ -192,6 +221,60 @@ describe("evaluate", () => {
     );
     expect(d.action).toBe("bet");
     if (d.action === "bet") expect(d.amountUsdc).toBe(5);
+  });
+
+  it("prices the bet's own pool impact (size-aware breakeven)", () => {
+    // One-sided NO book of $0.50, model P_yes 0.34. Opposing with YES at
+    // min bet breaks even at 0.345 — no edge, abstain.
+    const near = evaluate(
+      input({
+        record: record({ noPool: usd(0.5), yesPool: 0n }),
+        board: board([{ id: "trader-1", pnl: 400 }]),
+      }),
+    );
+    expect(near.action).toBe("abstain");
+    // Same book, but this agent's conviction jitter lifts P_yes to ~0.46:
+    // opposing at min bet now clears the margin.
+    const convinced = evaluate(
+      input({
+        record: record({ noPool: usd(0.5), yesPool: 0n }),
+        board: board([{ id: "trader-1", pnl: 400 }]),
+        convictionJitter: 0.12,
+      }),
+    );
+    expect(convinced.action).toBe("bet");
+    if (convinced.action === "bet") {
+      expect(convinced.side).toBe("yes");
+      expect(convinced.amountUsdc).toBe(KNOBS.minBetUsdc);
+      expect(convinced.rationale).toContain("oppose");
+    }
+  });
+
+  it("piles into a dominant two-sided book at min size under uncertainty", () => {
+    // Y=$4 N=$1 (80% dominant), model leans YES (pnl 520 vs k 500).
+    const d = evaluate(
+      input({
+        record: record({ yesPool: usd(4), noPool: usd(1) }),
+        board: board([{ id: "trader-1", pnl: 520 }]),
+      }),
+    );
+    expect(d.action).toBe("bet");
+    if (d.action === "bet") {
+      expect(d.side).toBe("yes");
+      expect(d.amountUsdc).toBe(KNOBS.minBetUsdc);
+      expect(d.rationale).toContain("pile_in");
+    }
+  });
+
+  it("respects the per-market exposure cap", () => {
+    const d = evaluate(
+      input({
+        record: record({ settleKind: SETTLE_FIRST_PRINT }),
+        board: board([{ id: "trader-1", pnl: 600 }]),
+        myExposureUsdc: 2,
+      }),
+    );
+    expect(d).toMatchObject({ action: "abstain", reason: "max_market_exposure" });
   });
 });
 

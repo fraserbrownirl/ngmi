@@ -28,6 +28,10 @@ export type SimConfig = {
   /** Bankroll fraction range for sizing. */
   betFractionMin: number;
   betFractionMax: number;
+  /** Per-market exposure cap per agent, USDC. */
+  maxMarketExposureUsdc: number;
+  /** Max deterministic per-agent probability offset (agents disagree). */
+  convictionJitter: number;
   /** pnpm sim:fund defaults. */
   fundUsdc: number;
   fundSol: number;
@@ -84,6 +88,8 @@ export function simConfig(
     minBetUsdc: num(env, "SIM_MIN_BET_USDC", 0.25),
     betFractionMin: num(env, "SIM_BET_FRACTION_MIN", 0.04),
     betFractionMax: num(env, "SIM_BET_FRACTION_MAX", 0.12),
+    maxMarketExposureUsdc: num(env, "SIM_MAX_MARKET_EXPOSURE_USDC", 2),
+    convictionJitter: num(env, "SIM_CONVICTION_JITTER", 0.12),
     fundUsdc: num(env, "SIM_FUND_USDC", 10),
     fundSol: num(env, "SIM_FUND_SOL", 0.05),
     dataDir: env.SIM_DATA_DIR?.trim() || path.join(process.cwd(), "data"),

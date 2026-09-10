@@ -1,0 +1,35 @@
+name: board-tick
+
+# Hourly FOMO board + settle. Hobby Vercel cron is daily-only, so this is the
+# cadence. Secret is CRON_SECRET (same value as Vercel). Never a FomoScan key.
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: board-tick
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refresh board and settle
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TICK_URL: ${{ vars.KEEPER_TICK_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not set"
+            exit 1
+          fi
+          : "${TICK_URL:=https://ngmi.markets/api/keeper/tick}"
+          curl -fsS --max-time 180 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Accept: application/json" \
+            "$TICK_URL"

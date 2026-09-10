@@ -19,5 +19,6 @@ dist
 apps/web
 data/*.json
 services/keeper/data/
+services/sim/data/
 docs/plans/
 docs/ideation/

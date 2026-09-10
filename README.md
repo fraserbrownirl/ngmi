@@ -4,7 +4,7 @@ Will this FOMO or PumpFun trader’s **leaderboard total PnL** print over **$X**
 
 Binary USDC pots on Solana. One data source: [FomoScan](https://api.fomoscan.sh/docs). FOMO pots judge `GET /v2/leaderboard/traders?window=all`, field `pnl`. Pump.fun pots judge a **cumulative** number: the tote sums the change in `pnlUsd` across `GET /v2/pump/leaderboard/traders?period=weekly` prints, because FomoScan has no pump `all` window and the weekly figure resets. A pot may be created only if the handle is on the current top-25 board and `T` is within three days.
 
-Default settle is **first-print**: the next board print over the mark, at or after the pot opened, resolves YES and closes betting. FOMO `window=all` is pulled hourly; pump.fun weekly is pulled daily (the fleet board only moves about once a day). A leftover file after a failed refresh does not first-print. **Close-at-T** waits for a print at or after T. Off-board at T cancels. Empty opposing pool cancels (refunds). YES iff `end_pnl >= threshold`. The program does not call FomoScan; a dedicated resolver posts `end_pnl_usd`.
+Default settle is **first-print**: the next board print over the mark, at or after the pot opened, resolves YES and closes betting. FOMO `window=all` is pulled hourly; pump.fun weekly is pulled daily (the fleet board only moves about once a day). Live pulls run on authenticated `GET /api/keeper/tick` (GitHub Actions hourly, plus a daily Vercel cron on Hobby). Public `GET /api/board` is cache-only and does not spend FomoScan CU. A leftover file after a failed refresh does not first-print. **Close-at-T** waits for a print at or after T. Off-board at T cancels. Empty opposing pool cancels (refunds). YES iff `end_pnl >= threshold`. The program does not call FomoScan; a dedicated resolver posts `end_pnl_usd`.
 
 MIT. Tote UI is not in this repository.
 
@@ -23,6 +23,7 @@ MIT. Tote UI is not in this repository.
 programs/fomo-pnl/        Anchor pot (SPL USDC)
 services/fomoscan/        Leaderboard client
 services/keeper/          Settles due pots from one board print
+services/sim/             Trading agents; bet existing pots, never create or settle
 services/telegram-bot/    Public-group feedback Menu
 packages/shared/          6-decimal compare + rake helpers
 ```
@@ -45,6 +46,7 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `FOMOSCAN_API_KEY` | yes (board client) | FomoScan bearer token |
 | `FOMOSCAN_API_KEY_2` | no | Spare key for a one-shot cache seed |
 | `FOMOSCAN_API_KEY_3` | no | Paid / extra live board key |
+| `FOMOSCAN_API_KEY_4` | no | Newer paid live board key; tried before key 3 |
 | `FOMO_SERVER_KEYPAIR` | no locally | JSON byte array; else `~/.config/solana/id.json` |
 | `SOLANA_RPC_URL` | no | Scripts; defaults to public devnet |
 | `MAINNET_ADMIN` / `MAINNET_FOUNDER` / `MAINNET_RESOLVER` | mainnet init | Role pubkeys for `pnpm mainnet:init`: Squads vault admin, founder cold key, resolver hot key |
@@ -65,12 +67,26 @@ Copy `.env.example` → `.env`. Only `FOMOSCAN_API_KEY` is required to call the 
 | `NEXT_PUBLIC_APP_URL` | no | Canonical origin for that callback |
 | `SOLANA_MAINNET_RPC_URL` | no | Holdings lookup for tweets; public mainnet if unset |
 | `ADMIN_TOKEN` | no | Gates every privileged tote route (stats, keeper tick, announce, traders, X status). Production denies them when unset |
+| `CRON_SECRET` | production tick | Bearer-only token for `GET /api/keeper/tick`. GitHub Actions hourly workflow and Vercel’s daily cron use this. Does not unlock other admin routes |
+| `FOMO_LIVE_BOARD` | no | Set `1` to let local/preview spend paid FomoScan board keys. Production always may. Public `GET /api/board` never pulls |
 | `NEXT_PUBLIC_SOLANA_CLUSTER` | no | `devnet` (default) or `mainnet`; faucet/demo routes answer on devnet only |
 | `TELEGRAM_BOT_TOKEN` | yes (feedback bot) | BotFather token |
 | `TELEGRAM_GROUP_ID` | no | If set, Menu and posts are scoped to that group; otherwise any group the bot is in |
 | `TWITTER_BEARER_TOKEN` | no | X app Bearer; if set, new official posts are copied into the group |
 | `TWITTER_USERNAME` | no | Handle to share; default `ngmidotmarkets` |
 | `TWITTERAPI_CTO_USERNAME` | no | Handle for the TwitterAPI.io group poll; default `ngmi_cto` |
+| `SIM_AGENT_KEYPAIRS` | no | Comma-separated agent keypair paths; default `~/.config/fomo/sim-agent-{1,2,3}.json` |
+| `SIM_MAX_BET_USDC` / `SIM_MIN_BET_USDC` | no | Per-bet cap $5 / floor $0.25 |
+| `SIM_DAILY_SPEND_USDC` | no | Per-agent rolling 24h spend cap, $8; reconstructed from the decision log |
+| `SIM_BANKROLL_FLOOR_USDC` / `SIM_SOL_FLOOR` | no | Stop trading below $1 USDC / 0.01 SOL |
+| `SIM_WAKE_MIN_SEC` / `SIM_WAKE_MAX_SEC` | no | Wake jitter bounds, 120–360s |
+| `SIM_EDGE_MARGIN` | no | Required probability edge over pool breakeven, 0.02 |
+| `SIM_PROXIMITY_GUARD` | no | Gap ratio below which NO bets are suppressed, 0.2 |
+| `SIM_BET_FRACTION_MIN` / `SIM_BET_FRACTION_MAX` | no | Bankroll fraction per bet, 0.04–0.12 |
+| `SIM_MAX_MARKET_EXPOSURE_USDC` | no | Per-agent per-market exposure cap, $2 |
+| `SIM_CONVICTION_JITTER` | no | Max per-agent probability offset, 0.12 — agents disagree enough to trade each other |
+| `SIM_FUND_USDC` / `SIM_FUND_SOL` | no | `pnpm sim:fund` top-up targets, $10 / 0.05 SOL |
+| `SIM_DATA_DIR` | no | Decision log dir; default `services/sim/data` (gitignored) |
 
 Never commit a real keypair, X token, bot token, or `.env`. Platform events post to `@ngmi_cto` via TwitterAPI.io when `TWITTERAPI_API_KEY` is set: new market, new bet (side, stake, wallet, book), and resolved YES/NO. Login is `user_login_v2`; writes are `_v2` with the same sticky `TWITTERAPI_PROXY`. Unset `TWITTERAPI_API_KEY` falls back to the connected OAuth account (`X_CLIENT_ID`); unset both leaves posting a no-op.
 

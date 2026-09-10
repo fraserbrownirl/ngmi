@@ -1,0 +1,26 @@
+{
+  "name": "@fomopred/sim",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "node --import tsx src/run.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@fomopred/fomoscan": "workspace:*",
+    "@fomopred/keeper": "workspace:*",
+    "@fomopred/shared": "workspace:*",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5",
+    "vitest": "^3.2.4"
+  }
+}

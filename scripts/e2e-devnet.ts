@@ -50,6 +50,9 @@ import { fomoUserIdToBytes, usdToMicro } from "@fomopred/shared";
 
 const APP = process.env.APP_URL ?? "http://localhost:3000";
 const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
+const ADMIN_HEADERS: Record<string, string> = process.env.ADMIN_TOKEN?.trim()
+  ? { "x-admin-token": process.env.ADMIN_TOKEN.trim() }
+  : {};
 const MICRO = 1_000_000n;
 const YES_BET = 100n * MICRO;
 const NO_BET = 400n * MICRO;
@@ -57,8 +60,8 @@ const POT = YES_BET + NO_BET;
 const FAUCET_AMOUNT = 1_000n * MICRO;
 
 const api = {
-  async get(route: string) {
-    const res = await fetch(`${APP}${route}`);
+  async get(route: string, headers?: Record<string, string>) {
+    const res = await fetch(`${APP}${route}`, { headers });
     return { status: res.status, body: await res.json().catch(() => null) };
   },
   async post(route: string, payload?: unknown) {
@@ -295,7 +298,7 @@ describe("e2e devnet: full user journeys", () => {
     });
 
     it("tick does not settle before the deadline", async () => {
-      const { status, body } = await api.get(`/api/keeper/tick`);
+      const { status, body } = await api.get(`/api/keeper/tick`, ADMIN_HEADERS);
       assert.equal(status, 200, JSON.stringify(body));
       const hit = (body.settled ?? []).find((row: { id: string }) => row.id === String(marketId));
       assert.isUndefined(hit);
@@ -309,7 +312,7 @@ describe("e2e devnet: full user journeys", () => {
     });
 
     it("GET /api/keeper/tick settles from the board print", async () => {
-      const { status, body } = await api.get(`/api/keeper/tick`);
+      const { status, body } = await api.get(`/api/keeper/tick`, ADMIN_HEADERS);
       assert.equal(status, 200, JSON.stringify(body));
       const hit = (body.settled ?? []).find((row: { id: string }) => row.id === String(marketId));
       assert.ok(hit, JSON.stringify(body));
@@ -324,7 +327,7 @@ describe("e2e devnet: full user journeys", () => {
     });
 
     it("tick is a no-op after settle", async () => {
-      const { status, body } = await api.get(`/api/keeper/tick`);
+      const { status, body } = await api.get(`/api/keeper/tick`, ADMIN_HEADERS);
       assert.equal(status, 200, JSON.stringify(body));
       const hit = (body.settled ?? []).find((row: { id: string }) => row.id === String(marketId));
       assert.isUndefined(hit);

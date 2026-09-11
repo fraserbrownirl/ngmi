@@ -2,16 +2,18 @@
 
 Autonomous trading agents for the pot. Each agent has its own wallet (USDC +
 SOL) and trades existing markets — `place_bet` and `claim_winnings`, never
-resolve. One designated maker (default `agent-1`) also creates a market when
-none are active, so the fleet always has a book to trade. Resolution stays
+resolve. Agents do not open markets by default; creation is opt-in (below).
+Resolution stays
 with the production keeper: agents read the same FomoScan `window=all` board
 the keeper settles from, so their edge estimates price the exact data that
 decides outcomes.
 
-## Market-making
+## Market-making (opt-in)
 
-When fewer than `SIM_MAX_ACTIVE_MARKETS` (default 1) markets are active, the
-maker (`SIM_MARKET_MAKER`) plans one pot per wake and returns without betting:
+Set `SIM_MARKET_MAKER` to an agent name (e.g. `agent-1`) to let that agent
+create markets; empty (the default) keeps the fleet trading-only. When fewer
+than `SIM_MAX_ACTIVE_MARKETS` (default 1) markets are active, the
+maker plans one pot per wake and returns without betting:
 
 - Trader: a real top-25 board trader with PnL ≥ $100 who has no active pot,
   rotating deterministically by next market id.
@@ -77,7 +79,8 @@ pnpm sim:report               # balances, open exposure, claimable, lifetime sta
 
 Mainnet sends require `CLUSTER=mainnet MAINNET_ACK=YES` (same gate as the
 smoke). Agent keypairs live outside the repo and only ever sign
-`place_bet` / `claim_winnings` (plus `create_market` on the maker).
+`place_bet` / `claim_winnings` (plus `create_market` when a maker is
+configured).
 
 ## Env
 

@@ -1,0 +1,17 @@
+# NGMI keeper cron — hourly board refresh + settle trigger.
+#
+# CRON_SECRET must equal the tote's Vercel CRON_SECRET (ngmi-stage,
+# production) and the GitHub Actions secret of the same name. It currently
+# lives on the worker as a dashboard plain_text binding; convert it BEFORE
+# the first `wrangler deploy` from this directory or the deploy drops the
+# binding and ticks start 401ing:
+#   npx --yes wrangler@latest secret put CRON_SECRET
+#   npx --yes wrangler@latest deploy
+# (Vercel needs a redeploy after any CRON_SECRET change there.)
+name = "ngmi-keeper-tick"
+account_id = "abde7701b8d6408569edbdb8c96b01f7"
+main = "worker.js"
+compatibility_date = "2026-09-10"
+
+[triggers]
+crons = ["17 * * * *"]

@@ -28,14 +28,18 @@ from `3ce3ee8` (full chain of custody: `docs/audit/2026-09-09-mainnet-deploy.md`
   the multisig/freeze gate below is OPEN until the beta label comes off.
 - Tote: `https://ngmi.markets` (Vercel project `ngmi-stage`; deploy rule
   `.cursor/rules/tote-staging.mdc`).
-- Settlement: GitHub Action `.github/workflows/board-tick.yml` (hourly cron
-  plus `workflow_dispatch`) calls `https://ngmi.markets/api/keeper/tick`
-  with a `CRON_SECRET` bearer. The keeper settles first-print hits and
-  post-T markets, then reprints the board snapshots the tote serves. The
-  Vercel cron in `apps/web/vercel.json` is a daily backstop only.
-- Sim fleet: `services/sim` runs three agent wallets plus a designated
-  market-maker against mainnet for dogfooding (`pnpm sim:run`; policy and
-  audit: `docs/audit/2026-09-10-sim-agents.md`).
+- Settlement: Cloudflare Worker `ngmi-keeper-tick` (source
+  `services/keeper-cron/`, cron `17 * * * *`) calls
+  `https://ngmi.markets/api/keeper/tick` with a `CRON_SECRET` bearer. The
+  keeper settles first-print hits and post-T markets, then reprints the
+  board snapshots the tote serves. Backstops: the daily Vercel cron in
+  `apps/web/vercel.json`, and `.github/workflows/board-tick.yml` via
+  `workflow_dispatch` only — its hourly `schedule` never fires (scheduled
+  workflows do not register on this account, proven 2026-09-11).
+- Sim fleet: `services/sim` runs three agent wallets against mainnet for
+  dogfooding (`pnpm sim:run`; market creation is opt-in via
+  `SIM_MARKET_MAKER`; policy and audit:
+  `docs/audit/2026-09-10-sim-agents.md`).
 
 ### Keeper operations
 
@@ -49,6 +53,11 @@ from `3ce3ee8` (full chain of custody: `docs/audit/2026-09-09-mainnet-deploy.md`
   <code>` and read the leaf program logs. (Happened once:
   `docs/audit/2026-09-10-sim-agents.md`.)
 - Changing any Vercel env/secret requires a redeploy to take effect.
+- `CRON_SECRET` lives in three places that must stay equal: the Cloudflare
+  worker binding (see `services/keeper-cron/wrangler.toml`), the Vercel
+  `CRON_SECRET` env on `ngmi-stage` (production, sensitive), and the GitHub
+  Actions secret on this repo. Rotate by setting all three to one new random
+  hex string, then redeploying the tote. Never commit the value.
 - The resolver wallet needs a little SOL for settle fees (~0.01 SOL covers
   many settles); the smoke script tops it up from the deploy wallet when
   below 0.005 SOL.

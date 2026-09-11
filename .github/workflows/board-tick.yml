@@ -1,9 +1,14 @@
 name: board-tick
 
-# Hourly FOMO board + settle. Hobby Vercel cron is daily-only, so this is the
-# cadence. Secret is CRON_SECRET (same value as Vercel). Never a FomoScan key.
-# GitHub registers the schedule on each push of this file to the default
-# branch — if hourly runs ever stop appearing, touch this comment and push.
+# Manual backstop for the FOMO board + settle. The hourly cadence runs on
+# the Cloudflare worker in services/keeper-cron/ (cron 17 * * * *); the
+# Vercel cron in apps/web/vercel.json is the daily backstop.
+# This workflow's own schedule never fires: scheduled workflows do not
+# register on this account (proven 2026-09-11 — file-touch pushes and
+# disable/enable did not register it; a fresh probe repo with a */5 cron
+# never ran either). Kept for workflow_dispatch only.
+# Secret is CRON_SECRET (same value as the Cloudflare binding and Vercel).
+# Never a FomoScan key.
 on:
   schedule:
     - cron: "0 * * * *"
